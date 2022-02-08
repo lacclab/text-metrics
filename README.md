@@ -7,7 +7,7 @@ The functions `get_frequency`,`get_surprisal` and`get_metrics` (for both metrics
 can be used to retrieve these values for any piece of text.
  E.g., running
 ```python
-from utils import get_metrics
+from eyeutils.utils import get_metrics
 from transformers import GPT2Tokenizer, GPT2LMHeadModel
 
 tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
@@ -15,7 +15,7 @@ model = GPT2LMHeadModel.from_pretrained('gpt2')
 text = "Hello, how are you?"
 
 words_with_metrics = get_metrics(text=text,tokenizer=tokenizer,model=model)
-words_with_metrics
+print(words_with_metrics)
 ```
 Should result in
 
@@ -27,9 +27,19 @@ Should result in
 | you?   |   1.85489   |   0.00955   |
 
 
-`merge_metrics_with_eye_movements.py` takes the OneStopQA data from HuggingFace (TODO add link),
-retrieves surprisal and frequency for each word and merges it with the eye movement report (TODO - complete).
+`merge_metrics_with_eye_movements.py` takes the [OneStopQA](https://huggingface.co/datasets/onestop_qa) data from HuggingFace,
+retrieves surprisal and frequency for each word and merges it with the eye movement report.
+```python
+from transformers import GPT2Tokenizer, GPT2LMHeadModel
+from eyeutils.merge_metrics_with_eye_movements import add_metrics_to_eye_tracking
 
+et_data = load_et_data() # Some function to load the eye tracking report
+# Surprisal from GPT2, for example
+tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
+model = GPT2LMHeadModel.from_pretrained('gpt2')
+
+et_data_enriched = add_metrics_to_eye_tracking(eye_tracking_data=et_data, tokenizer=tokenizer, model=model)
+```
 
 ## Surprisal 
 - Surprisal values are extracted from the `model` (and corresponding `tokenizer`).
@@ -46,6 +56,11 @@ Frequency is extracted via the [wordfreq](https://github.com/rspeer/wordfreq) pa
 
 ## Setup
 
+To install the package - 
+`pip install git+https://github.com/lacclab/text-metrics.git`.
+
+To make changes - clone to your local station.
+
 Tested with package versions:
 
 - pandas 1.3.4
@@ -53,3 +68,29 @@ Tested with package versions:
 - wordfreq 2.5.1
 - transformers 4.12.0
 - pytorch 1.10.0
+
+## TODOs
+
+- Handling Special Characters - is the following okay?
+  - Before tokenization
+    ```python
+    raw_text \
+      .replace('’', "'") \
+      .replace("“", "\"") \
+      .replace("”", "\"") \
+      .replace("–", "-") \
+      .replace("…", "...") \
+      .replace("‘", "'") \
+      .replace("é", "e") \
+      .replace("ë", "e") \
+      .replace("ﬁ", "fi") \
+      .replace("ï", "i")
+    ```
+- After surprisal tokenization
+  ```python
+  tok_str = tok[1:] if tok.startswith('Ġ') else tok
+  tok_str = tok_str.replace("Â", "").replace("âĤ¬", "€") 
+  ```
+- eye tracking report - duplicate rows for words with '-'.
+- frequency - tokenization of - and ...
+- After all the above, verify works as expected on `add_metrics_to_eye_tracking`.
