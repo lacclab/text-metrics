@@ -1,7 +1,7 @@
 import pandas as pd
 from datasets import load_dataset
 from transformers import GPT2Tokenizer, GPT2LMHeadModel
-from utils import get_metrics
+from eyeutils.utils import get_metrics
 
 
 def add_metrics_to_eye_tracking(eye_tracking_data: pd.DataFrame, tokenizer, model) -> pd.DataFrame:
@@ -18,7 +18,6 @@ def add_metrics_to_eye_tracking(eye_tracking_data: pd.DataFrame, tokenizer, mode
     >>> tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
     >>> model = GPT2LMHeadModel.from_pretrained('gpt2')
     >>> et_data_enriched = add_metrics_to_eye_tracking(eye_tracking_data=et_data, tokenizer=tokenizer, model=model)
-
     """
 
     # Load the OneStopQA HuggingFace dataset
