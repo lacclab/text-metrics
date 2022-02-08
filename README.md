@@ -27,7 +27,7 @@ Should result in
 | you?   |   1.85489   |   0.00955   |
 
 
-`merge_metrics_with_eye_movements.py` takes the OneStopQA data from HuggingFace (TODO add link),
+`merge_metrics_with_eye_movements.py` takes the [OneStopQA](https://huggingface.co/datasets/onestop_qa) data from HuggingFace,
 retrieves surprisal and frequency for each word and merges it with the eye movement report (TODO - complete).
 
 
@@ -53,3 +53,28 @@ Tested with package versions:
 - wordfreq 2.5.1
 - transformers 4.12.0
 - pytorch 1.10.0
+
+## TODOs
+
+- Handling Special Characters
+  - Before tokenization
+    ```python
+    raw_text \
+      .replace('’', "'") \
+      .replace("“", "\"") \
+      .replace("”", "\"") \
+      .replace("–", "-") \
+      .replace("…", "...") \
+      .replace("‘", "'") \
+      .replace("é", "e") \
+      .replace("ë", "e") \
+      .replace("ﬁ", "fi") \
+      .replace("ï", "i")
+    ```
+  - After surprisal tokenization
+    ```python
+    tok_str = tok[1:] if tok.startswith('Ġ') else tok
+    tok_str = tok_str.replace("Â", "").replace("âĤ¬", "€") 
+    ```
+  - eye tracking report - duplicate rows for words with '-'.
+  - frequency - tokenization of - and ...
