@@ -2,7 +2,8 @@ import pandas as pd
 import torch
 from torch.nn.functional import log_softmax
 from transformers import GPT2Tokenizer, GPT2LMHeadModel
-from wordfreq import word_frequency, tokenize
+from wordfreq import word_frequency, tokenize, zipf_frequency
+import math
 
 
 def _get_surp(text: str, tokenizer, model) -> list[tuple[str, float]]:
@@ -103,17 +104,35 @@ def get_frequency(text: str) -> pd.DataFrame:
     >>> text = "hello, how are you?"
     >>> frequencies = get_frequency(text=text)
     >>> frequencies
-         Word  Frequency
-    0  hello,   0.000053
-    1     how   0.001740
-    2     are   0.005500
-    3    you?   0.009550
+         Word  Frequency  MinusLog2Frequency  Zipf_Frequency
+    0  hello,   0.000053           14.217323            4.72
+    1     how   0.001740            9.166697            6.24
+    2     are   0.005500            7.506353            6.74
+    3    you?   0.009550            6.710284            6.98
     """
 
-    parsed_paragraph = tokenize(text, lang='en')
-    frequencies = {'Word': text.split(),
-                   'Frequency': [word_frequency(word, lang='en') for word in parsed_paragraph]
+    frequencies = {
+        'Word':[],
+        'Frequency':[],
+        'MinusLog2Frequency':[],
+        'Zipf_Frequency':[],
                    }
+    for word in text.split():
+        frequencies['Word'].append(word)
+        tokenized_word = tokenize(word, lang='en')
+        if word=='24/7':
+            tokenized_word = [word]
+        # Todo with temporarily captures word with '-' which are split into two word by the tokenizer
+        if len(tokenized_word) != 1:
+            frequencies['Frequency'].append(0)
+            frequencies['MinusLog2Frequency'].append(0)
+            frequencies['Zipf_Frequency'].append(0)
+        else:
+            freq = word_frequency(tokenized_word[0], lang='en')
+            frequencies['Frequency'].append(freq)
+            frequencies['MinusLog2Frequency'].append(-math.log(freq, 2) if freq != 0 else 0)
+            frequencies['Zipf_Frequency'].append(zipf_frequency(tokenized_word[0], lang='en'))
+
     return pd.DataFrame(frequencies)
 
 
@@ -121,7 +140,6 @@ def clean_text(raw_text: str) -> str:
     """
     Replaces the problematic characters in the text.
     """
-    # TODO is this okay?
     return raw_text \
         .replace('’', "'") \
         .replace("“", "\"") \
@@ -149,15 +167,23 @@ def get_metrics(text: str, tokenizer, model) -> pd.DataFrame:
     >>> text = "hello, how are you?"
     >>> words_with_metrics = get_metrics(text=text,tokenizer=tokenizer,model=model)
     >>> words_with_metrics
-         Word  Surprisal  Frequency
-    0  hello,  23.840695   0.000053
-    1     how   6.321535   0.001740
-    2     are   1.971676   0.005500
-    3    you?   2.309872   0.009550
+         Word  Surprisal  Frequency  MinusLog2Frequency  Zipf_Frequency
+    0  hello,  23.840695   0.000053           14.217323            4.72
+    1     how   6.321535   0.001740            9.166697            6.24
+    2     are   1.971676   0.005500            7.506353            6.74
+    3    you?   2.309872   0.009550            6.710284            6.98
     """
 
     text_reformatted = clean_text(text)
     surprisals = get_surprisal(text=text_reformatted, tokenizer=tokenizer, model=model)
     frequency = get_frequency(text=text_reformatted)
-    merged_df = pd.concat([surprisals, frequency[['Frequency']]], axis=1)
+    merged_df = surprisals.join(frequency.drop('Word', axis=1))
     return merged_df
+
+
+if __name__ == '__main__':
+    tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
+    model = GPT2LMHeadModel.from_pretrained('gpt2')
+    text = "hello, the how are you?"
+    words_with_metrics = get_metrics(text=text, tokenizer=tokenizer, model=model)
+    print(words_with_metrics)

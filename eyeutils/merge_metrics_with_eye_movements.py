@@ -28,6 +28,8 @@ def add_metrics_to_eye_tracking(eye_tracking_data: pd.DataFrame, tokenizer, mode
     # Extract metrics for all paragraph-level pairs
     metric_dfs = []
     for row in df[['paragraph', 'paragraph_index', 'title', 'level']].drop_duplicates().itertuples():
+        if "-" in row.paragraph:
+            continue
         print(row.Index, row.paragraph)
         merged_df = get_metrics(text=row.paragraph, tokenizer=tokenizer, model=model)
         merged_df['paragraph_id'] = row.paragraph_index + 1
@@ -36,7 +38,7 @@ def add_metrics_to_eye_tracking(eye_tracking_data: pd.DataFrame, tokenizer, mode
         merged_df.reset_index(inplace=True)
         merged_df = merged_df.rename({'index': 'IA_ID', 'Word': 'IA_LABEL'}, axis=1)
         metric_dfs.append(merged_df)
-        break  # TODO handle problematic frequency tokenization and duplicate words with '-' in report.
+        # break  # TODO handle problematic frequency tokenization and duplicate words with '-' in report.
     metric_df = pd.concat(metric_dfs, axis=0)
 
     # Join metrics with eye_tracking_data
@@ -45,3 +47,12 @@ def add_metrics_to_eye_tracking(eye_tracking_data: pd.DataFrame, tokenizer, mode
                                                validate='many_to_one')
 
     return et_data_enriched
+
+
+if __name__ == '__main__':
+
+    et_data = pd.read_csv(r"C:\Users\omers\PycharmProjects\eye_tracking\data\et_data.csv")
+    tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
+    model = GPT2LMHeadModel.from_pretrained('gpt2')
+    et_data_enriched = add_metrics_to_eye_tracking(eye_tracking_data=et_data, tokenizer=tokenizer, model=model)
+    pass
