@@ -128,7 +128,7 @@ def get_frequency(text: str) -> pd.DataFrame:
         except KeyError:
             subtlex_freq = 0
         else:
-            subtlex_freq = 1.0 / one_over_result
+            subtlex_freq = 1.0 / one_over_result if one_over_result != 0 else 0
         subtlex_freqs.append(subtlex_freq)
 
     frequencies['subtlex_Frequency'] = subtlex_freqs
