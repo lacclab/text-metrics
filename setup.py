@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='eyeutils',
-    version='0.2.1',
+    version='0.3',
     packages=['eyeutils'],
     url='',
     license='',

@@ -2,7 +2,7 @@ import pandas as pd
 import torch
 from torch.nn.functional import log_softmax
 from transformers import GPT2Tokenizer, GPT2LMHeadModel
-from wordfreq import word_frequency
+from wordfreq import word_frequency, tokenize
 import numpy as np
 
 
@@ -93,7 +93,7 @@ def get_surprisal(text: str, tokenizer, model) -> pd.DataFrame:
 
 def get_frequency(text: str) -> pd.DataFrame:
     """
-    Get frequencies for each word in text.
+    Get (negative log2) frequencies for each word in text.
 
     Words are split by white space.
     A frequency of a word does not include adjacent punctuation.
@@ -105,18 +105,33 @@ def get_frequency(text: str) -> pd.DataFrame:
     >>> text = "hello, how are you?"
     >>> frequencies = get_frequency(text=text)
     >>> frequencies
-         Word  Frequency
-    0  hello,  14.217323
-    1     how   9.166697
-    2     are   7.506353
-    3    you?   6.710284
+         Word  Wordfreq_Frequency  subtlex_Frequency
+    0  hello,           14.217323          10.701528
+    1     how            9.166697           8.317353
+    2     are            7.506353           7.548023
+    3    you?            6.710284           4.541699
     """
     words = text.split()
     frequencies = {
         'Word': words,
-        'Frequency': [-np.log2(word_frequency(word, lang='en')) for word in words],
+        'Wordfreq_Frequency': [-np.log2(word_frequency(word, lang='en')) for word in words],
     }
+    subtlex = pd.read_csv('../data/SUBTLEXus74286wordstextversion_lower.txt', sep='\t', index_col=0, )
+    subtlex['Frequency'] = -np.log2(subtlex['Count'] / subtlex.sum()[0])
+    subtlex_freqs = []
+    for word in words:
+        tokens = tokenize(word, lang='en')
+        one_over_result = 0.0
+        try:
+            for token in tokens:
+                one_over_result += 1.0 / subtlex.loc[token, 'Frequency']
+        except KeyError:
+            subtlex_freq = 0
+        else:
+            subtlex_freq = 1.0 / one_over_result
+        subtlex_freqs.append(subtlex_freq)
 
+    frequencies['subtlex_Frequency'] = subtlex_freqs
     return pd.DataFrame(frequencies)
 
 
@@ -151,11 +166,11 @@ def get_metrics(text: str, tokenizer, model) -> pd.DataFrame:
     >>> text = "hello, how are you?"
     >>> words_with_metrics = get_metrics(text=text,tokenizer=tokenizer,model=model)
     >>> words_with_metrics
-         Word  Surprisal  Frequency
-    0  hello,  23.840695  14.217323
-    1     how   6.321535   9.166697
-    2     are   1.971676   7.506353
-    3    you?   2.309872   6.710284
+         Word  Surprisal  Wordfreq_Frequency  subtlex_Frequency
+    0  hello,  23.840695           14.217323          10.701528
+    1     how   6.321535            9.166697           8.317353
+    2     are   1.971676            7.506353           7.548023
+    3    you?   2.309872            6.710284           4.541699
     """
 
     text_reformatted = clean_text(text)
