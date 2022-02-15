@@ -2,8 +2,8 @@ import pandas as pd
 import torch
 from torch.nn.functional import log_softmax
 from transformers import GPT2Tokenizer, GPT2LMHeadModel
-from wordfreq import word_frequency, tokenize, zipf_frequency
-import math
+from wordfreq import word_frequency
+import numpy as np
 
 
 def _get_surp(text: str, tokenizer, model) -> list[tuple[str, float]]:
@@ -45,7 +45,7 @@ def _join_surp(words: list[str], tok_surps: list[tuple[str, float]]):
     word_till_now = ""
     for tok, tok_surp in tok_surps:
         tok_str = tok[1:] if tok.startswith('Ġ') else tok
-        tok_str = tok_str.replace("Â", "").replace("âĤ¬", "€")  # TODO is this okay?
+        tok_str = tok_str.replace("Â", "").replace("âĤ¬", "€")  # Converts back euro and gbp sign
         assert (words[word_ind][within_word_position:within_word_position + len(tok_str)] == tok_str), \
             words[word_ind][within_word_position:within_word_position + len(tok_str)] + '!=' + tok_str
         word_surp += tok_surp
@@ -97,6 +97,7 @@ def get_frequency(text: str) -> pd.DataFrame:
 
     Words are split by white space.
     A frequency of a word does not include adjacent punctuation.
+    Half harmonic mean is applied for complex words. E.g. freq(top-level) = 1/(1/freq(top) + 1/freq(level))
 
     :param text: str, the text to get frequencies for.
     :return: pd.DataFrame, each row represents a word and its frequency.
@@ -104,34 +105,17 @@ def get_frequency(text: str) -> pd.DataFrame:
     >>> text = "hello, how are you?"
     >>> frequencies = get_frequency(text=text)
     >>> frequencies
-         Word  Frequency  MinusLog2Frequency  Zipf_Frequency
-    0  hello,   0.000053           14.217323            4.72
-    1     how   0.001740            9.166697            6.24
-    2     are   0.005500            7.506353            6.74
-    3    you?   0.009550            6.710284            6.98
+         Word  Frequency
+    0  hello,  14.217323
+    1     how   9.166697
+    2     are   7.506353
+    3    you?   6.710284
     """
-
+    words = text.split()
     frequencies = {
-        'Word':[],
-        'Frequency':[],
-        'MinusLog2Frequency':[],
-        'Zipf_Frequency':[],
-                   }
-    for word in text.split():
-        frequencies['Word'].append(word)
-        tokenized_word = tokenize(word, lang='en')
-        if word=='24/7':
-            tokenized_word = [word]
-        # Todo with temporarily captures word with '-' which are split into two word by the tokenizer
-        if len(tokenized_word) != 1:
-            frequencies['Frequency'].append(0)
-            frequencies['MinusLog2Frequency'].append(0)
-            frequencies['Zipf_Frequency'].append(0)
-        else:
-            freq = word_frequency(tokenized_word[0], lang='en')
-            frequencies['Frequency'].append(freq)
-            frequencies['MinusLog2Frequency'].append(-math.log(freq, 2) if freq != 0 else 0)
-            frequencies['Zipf_Frequency'].append(zipf_frequency(tokenized_word[0], lang='en'))
+        'Word': words,
+        'Frequency': [-np.log2(word_frequency(word, lang='en')) for word in words],
+    }
 
     return pd.DataFrame(frequencies)
 
@@ -167,11 +151,11 @@ def get_metrics(text: str, tokenizer, model) -> pd.DataFrame:
     >>> text = "hello, how are you?"
     >>> words_with_metrics = get_metrics(text=text,tokenizer=tokenizer,model=model)
     >>> words_with_metrics
-         Word  Surprisal  Frequency  MinusLog2Frequency  Zipf_Frequency
-    0  hello,  23.840695   0.000053           14.217323            4.72
-    1     how   6.321535   0.001740            9.166697            6.24
-    2     are   1.971676   0.005500            7.506353            6.74
-    3    you?   2.309872   0.009550            6.710284            6.98
+         Word  Surprisal  Frequency
+    0  hello,  23.840695  14.217323
+    1     how   6.321535   9.166697
+    2     are   1.971676   7.506353
+    3    you?   2.309872   6.710284
     """
 
     text_reformatted = clean_text(text)
@@ -184,6 +168,6 @@ def get_metrics(text: str, tokenizer, model) -> pd.DataFrame:
 if __name__ == '__main__':
     tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
     model = GPT2LMHeadModel.from_pretrained('gpt2')
-    text = "hello, the how are you?"
-    words_with_metrics = get_metrics(text=text, tokenizer=tokenizer, model=model)
+    input_text = "hello, the how are you top-level?"
+    words_with_metrics = get_metrics(text=input_text, tokenizer=tokenizer, model=model)
     print(words_with_metrics)
