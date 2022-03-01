@@ -4,6 +4,7 @@ from torch.nn.functional import log_softmax
 from transformers import GPT2Tokenizer, GPT2LMHeadModel
 from wordfreq import word_frequency, tokenize
 import numpy as np
+import string
 
 
 def _get_surp(text: str, tokenizer, model) -> list[tuple[str, float]]:
@@ -116,8 +117,10 @@ def get_frequency(text: str) -> pd.DataFrame:
         'Word': words,
         'Wordfreq_Frequency': [-np.log2(word_frequency(word, lang='en')) for word in words],
     }
+
     subtlex = pd.read_csv('../data/SUBTLEXus74286wordstextversion_lower.txt', sep='\t', index_col=0, )
     subtlex['Frequency'] = -np.log2(subtlex['Count'] / subtlex.sum()[0])
+
     subtlex_freqs = []
     for word in words:
         tokens = tokenize(word, lang='en')
@@ -130,9 +133,52 @@ def get_frequency(text: str) -> pd.DataFrame:
         else:
             subtlex_freq = 1.0 / one_over_result if one_over_result != 0 else 0
         subtlex_freqs.append(subtlex_freq)
-
     frequencies['subtlex_Frequency'] = subtlex_freqs
+
     return pd.DataFrame(frequencies)
+
+
+def get_word_length(text: str, disregard_punctuation: bool=True) -> pd.DataFrame:
+    """
+    Get the length of each word in text.
+
+    Words are split by white space.
+
+    :param text: str, the text to get lengths for.
+    :param disregard_punctuation: bool, controls whether to include adjacent punctuation (False) or not (True).
+    :return: pd.DataFrame, each row represents a word and its length.
+
+    Examples
+    --------
+    >>> text = "hello, how are you?"
+    >>> lengths = get_word_length(text=text, disregard_punctuation=True)
+    >>> lengths
+         Word  Length
+    0  hello,       5
+    1     how       3
+    2     are       3
+    3    you?       3
+
+    >>> text = "hello, how are you?"
+    >>> lengths = get_word_length(text=text, disregard_punctuation=False)
+    >>> lengths
+         Word  Length
+    0  hello,       6
+    1     how       3
+    2     are       3
+    3    you?       4
+
+
+    """
+    word_lengths = {
+        'Word': text.split(),
+    }
+    if disregard_punctuation:
+        text = text.translate(str.maketrans('', '', string.punctuation))
+
+    word_lengths['Length'] = [len(word) for word in text.split()]
+
+    return pd.DataFrame(word_lengths)
 
 
 def clean_text(raw_text: str) -> str:
@@ -154,7 +200,7 @@ def clean_text(raw_text: str) -> str:
 
 def get_metrics(text: str, tokenizer, model) -> pd.DataFrame:
     """
-    Wrapper function to get the surprisal and frequency values of each word in the text.
+    Wrapper function to get the surprisal and frequency values and length of each word in the text.
 
     :param text: str, the text to get metrics for.
     :param model: the model to extract surprisal values from.
@@ -166,17 +212,19 @@ def get_metrics(text: str, tokenizer, model) -> pd.DataFrame:
     >>> text = "hello, how are you?"
     >>> words_with_metrics = get_metrics(text=text,tokenizer=tokenizer,model=model)
     >>> words_with_metrics
-         Word  Surprisal  Wordfreq_Frequency  subtlex_Frequency
-    0  hello,  23.840695           14.217323          10.701528
-    1     how   6.321535            9.166697           8.317353
-    2     are   1.971676            7.506353           7.548023
-    3    you?   2.309872            6.710284           4.541699
+         Word  Surprisal  Wordfreq_Frequency  subtlex_Frequency  Length
+    0  hello,  23.840695           14.217323          10.701528       5
+    1     how   6.321535            9.166697           8.317353       3
+    2     are   1.971676            7.506353           7.548023       3
+    3    you?   2.309872            6.710284           4.541699       3
     """
 
     text_reformatted = clean_text(text)
     surprisals = get_surprisal(text=text_reformatted, tokenizer=tokenizer, model=model)
     frequency = get_frequency(text=text_reformatted)
+    word_length = get_word_length(text=text_reformatted, disregard_punctuation=True)
     merged_df = surprisals.join(frequency.drop('Word', axis=1))
+    merged_df = merged_df.join(word_length.drop('Word', axis=1))
     return merged_df
 
 
