@@ -1,5 +1,4 @@
 import pandas as pd
-from datasets import load_dataset
 from transformers import GPT2Tokenizer, GPT2LMHeadModel
 from eyeutils.utils import get_metrics
 
