@@ -5,6 +5,7 @@ from transformers import GPT2Tokenizer, GPT2LMHeadModel
 from wordfreq import word_frequency, tokenize
 import numpy as np
 import string
+import pkg_resources
 
 
 def _get_surp(text: str, tokenizer, model) -> list[tuple[str, float]]:
@@ -118,7 +119,8 @@ def get_frequency(text: str) -> pd.DataFrame:
         'Wordfreq_Frequency': [-np.log2(word_frequency(word, lang='en')) for word in words],
     }
 
-    subtlex = pd.read_csv('../data/SUBTLEXus74286wordstextversion_lower.txt', sep='\t', index_col=0, )
+    data = pkg_resources.resource_stream(__name__, "data/SUBTLEXus74286wordstextversion_lower.tsv")
+    subtlex = pd.read_csv(data, sep='\t', index_col=0, )
     subtlex['Frequency'] = -np.log2(subtlex['Count'] / subtlex.sum()[0])
 
     subtlex_freqs = []
@@ -174,9 +176,10 @@ def get_word_length(text: str, disregard_punctuation: bool=True) -> pd.DataFrame
         'Word': text.split(),
     }
     if disregard_punctuation:
-        text = text.translate(str.maketrans('', '', string.punctuation))
-
-    word_lengths['Length'] = [len(word) for word in text.split()]
+        #     text = text.translate(str.maketrans('', '', string.punctuation))
+        word_lengths['Length'] = [len(word.translate(str.maketrans('', '', string.punctuation))) for word in text.split()]
+    else:
+        word_lengths['Length'] = [len(word) for word in text.split()]
 
     return pd.DataFrame(word_lengths)
 
