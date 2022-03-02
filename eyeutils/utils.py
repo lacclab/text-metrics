@@ -116,9 +116,9 @@ def get_frequency(text: str) -> pd.DataFrame:
     words = text.split()
     frequencies = {
         'Word': words,
-        'Wordfreq_Frequency': [-np.log2(word_frequency(word, lang='en')) for word in words],
+        'Wordfreq_Frequency': [-np.log2(word_frequency(word, lang='en')) for word in words], # TODO replace inf with zero
     }
-
+    # TODO improve loading of file according to https://stackoverflow.com/questions/6028000/how-to-read-a-static-file-from-inside-a-python-package
     data = pkg_resources.resource_stream(__name__, "data/SUBTLEXus74286wordstextversion_lower.tsv")
     subtlex = pd.read_csv(data, sep='\t', index_col=0, )
     subtlex['Frequency'] = -np.log2(subtlex['Count'] / subtlex.sum()[0])
