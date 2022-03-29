@@ -11,4 +11,7 @@ setup(
     description='Utils for Eye Tracking Measurements',
     include_package_data=True,
     package_data={'': ['data/*.tsv']},
+    extras_require = {
+            'lm_zoo': ['lm-zoo']
+        }
 )
