@@ -17,7 +17,7 @@ def _get_surp(text: str, tokenizer, model) -> list[tuple[str, float]]:
     :param tokenizer: should be compatible with model.
     :return: list of tuples of (subword, surprisal values).
     """
-    text = tokenizer.bos_token + ' ' + text  # add beginning of sentence token
+    text = tokenizer.bos_token + text + tokenizer.eos_token  # add beginning of sentence token
     ids = torch.tensor(tokenizer.encode(text))
     toks = tokenizer.tokenize(text)
 
@@ -186,7 +186,8 @@ def get_word_length(text: str, disregard_punctuation: bool=True) -> pd.DataFrame
 
 def clean_text(raw_text: str) -> str:
     """
-    Replaces the problematic characters in the text.
+    Replaces the problematic characters in the raw_text, made for OnestopQA.
+    E.g., "ë" -> "e"
     """
     return raw_text \
         .replace('’', "'") \
@@ -234,6 +235,6 @@ def get_metrics(text: str, tokenizer, model) -> pd.DataFrame:
 if __name__ == '__main__':
     tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
     model = GPT2LMHeadModel.from_pretrained('gpt2')
-    input_text = "hello, the how are you top-level?"
+    input_text = "hello, how are you?"
     words_with_metrics = get_metrics(text=input_text, tokenizer=tokenizer, model=model)
     print(words_with_metrics)
