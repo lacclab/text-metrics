@@ -3,6 +3,9 @@ import torch
 from torch.nn.functional import log_softmax
 from transformers import GPT2Tokenizer, GPT2LMHeadModel
 from wordfreq import word_frequency, tokenize
+import numpy as np
+import string
+import pkg_resources
 
 
 def _get_surp(text: str, tokenizer, model) -> list[tuple[str, float]]:
@@ -44,7 +47,7 @@ def _join_surp(words: list[str], tok_surps: list[tuple[str, float]]):
     word_till_now = ""
     for tok, tok_surp in tok_surps:
         tok_str = tok[1:] if tok.startswith('Ġ') else tok
-        tok_str = tok_str.replace("Â", "").replace("âĤ¬", "€")  # TODO is this okay?
+        tok_str = tok_str.replace("Â", "").replace("âĤ¬", "€")  # Converts back euro and gbp sign
         assert (words[word_ind][within_word_position:within_word_position + len(tok_str)] == tok_str), \
             words[word_ind][within_word_position:within_word_position + len(tok_str)] + '!=' + tok_str
         word_surp += tok_surp
@@ -92,10 +95,11 @@ def get_surprisal(text: str, tokenizer, model) -> pd.DataFrame:
 
 def get_frequency(text: str) -> pd.DataFrame:
     """
-    Get frequencies for each word in text.
+    Get (negative log2) frequencies for each word in text.
 
     Words are split by white space.
     A frequency of a word does not include adjacent punctuation.
+    Half harmonic mean is applied for complex words. E.g. freq(top-level) = 1/(1/freq(top) + 1/freq(level))
 
     :param text: str, the text to get frequencies for.
     :return: pd.DataFrame, each row represents a word and its frequency.
@@ -103,25 +107,87 @@ def get_frequency(text: str) -> pd.DataFrame:
     >>> text = "hello, how are you?"
     >>> frequencies = get_frequency(text=text)
     >>> frequencies
-         Word  Frequency
-    0  hello,   0.000053
-    1     how   0.001740
-    2     are   0.005500
-    3    you?   0.009550
+         Word  Wordfreq_Frequency  subtlex_Frequency
+    0  hello,           14.217323          10.701528
+    1     how            9.166697           8.317353
+    2     are            7.506353           7.548023
+    3    you?            6.710284           4.541699
     """
+    words = text.split()
+    frequencies = {
+        'Word': words,
+        'Wordfreq_Frequency': [-np.log2(word_frequency(word, lang='en')) for word in words], # TODO replace inf with zero
+    }
+    # TODO improve loading of file according to https://stackoverflow.com/questions/6028000/how-to-read-a-static-file-from-inside-a-python-package
+    data = pkg_resources.resource_stream(__name__, "data/SUBTLEXus74286wordstextversion_lower.tsv")
+    subtlex = pd.read_csv(data, sep='\t', index_col=0, )
+    subtlex['Frequency'] = -np.log2(subtlex['Count'] / subtlex.sum()[0])
 
-    parsed_paragraph = tokenize(text, lang='en')
-    frequencies = {'Word': text.split(),
-                   'Frequency': [word_frequency(word, lang='en') for word in parsed_paragraph]
-                   }
+    subtlex_freqs = []
+    for word in words:
+        tokens = tokenize(word, lang='en')
+        one_over_result = 0.0
+        try:
+            for token in tokens:
+                one_over_result += 1.0 / subtlex.loc[token, 'Frequency']
+        except KeyError:
+            subtlex_freq = 0
+        else:
+            subtlex_freq = 1.0 / one_over_result if one_over_result != 0 else 0
+        subtlex_freqs.append(subtlex_freq)
+    frequencies['subtlex_Frequency'] = subtlex_freqs
+
     return pd.DataFrame(frequencies)
+
+
+def get_word_length(text: str, disregard_punctuation: bool=True) -> pd.DataFrame:
+    """
+    Get the length of each word in text.
+
+    Words are split by white space.
+
+    :param text: str, the text to get lengths for.
+    :param disregard_punctuation: bool, controls whether to include adjacent punctuation (False) or not (True).
+    :return: pd.DataFrame, each row represents a word and its length.
+
+    Examples
+    --------
+    >>> text = "hello, how are you?"
+    >>> lengths = get_word_length(text=text, disregard_punctuation=True)
+    >>> lengths
+         Word  Length
+    0  hello,       5
+    1     how       3
+    2     are       3
+    3    you?       3
+
+    >>> text = "hello, how are you?"
+    >>> lengths = get_word_length(text=text, disregard_punctuation=False)
+    >>> lengths
+         Word  Length
+    0  hello,       6
+    1     how       3
+    2     are       3
+    3    you?       4
+
+
+    """
+    word_lengths = {
+        'Word': text.split(),
+    }
+    if disregard_punctuation:
+        #     text = text.translate(str.maketrans('', '', string.punctuation))
+        word_lengths['Length'] = [len(word.translate(str.maketrans('', '', string.punctuation))) for word in text.split()]
+    else:
+        word_lengths['Length'] = [len(word) for word in text.split()]
+
+    return pd.DataFrame(word_lengths)
 
 
 def clean_text(raw_text: str) -> str:
     """
     Replaces the problematic characters in the text.
     """
-    # TODO is this okay?
     return raw_text \
         .replace('’', "'") \
         .replace("“", "\"") \
@@ -137,7 +203,7 @@ def clean_text(raw_text: str) -> str:
 
 def get_metrics(text: str, tokenizer, model) -> pd.DataFrame:
     """
-    Wrapper function to get the surprisal and frequency values of each word in the text.
+    Wrapper function to get the surprisal and frequency values and length of each word in the text.
 
     :param text: str, the text to get metrics for.
     :param model: the model to extract surprisal values from.
@@ -149,15 +215,25 @@ def get_metrics(text: str, tokenizer, model) -> pd.DataFrame:
     >>> text = "hello, how are you?"
     >>> words_with_metrics = get_metrics(text=text,tokenizer=tokenizer,model=model)
     >>> words_with_metrics
-         Word  Surprisal  Frequency
-    0  hello,  23.840695   0.000053
-    1     how   6.321535   0.001740
-    2     are   1.971676   0.005500
-    3    you?   2.309872   0.009550
+         Word  Surprisal  Wordfreq_Frequency  subtlex_Frequency  Length
+    0  hello,  23.840695           14.217323          10.701528       5
+    1     how   6.321535            9.166697           8.317353       3
+    2     are   1.971676            7.506353           7.548023       3
+    3    you?   2.309872            6.710284           4.541699       3
     """
 
     text_reformatted = clean_text(text)
     surprisals = get_surprisal(text=text_reformatted, tokenizer=tokenizer, model=model)
     frequency = get_frequency(text=text_reformatted)
-    merged_df = pd.concat([surprisals, frequency[['Frequency']]], axis=1)
+    word_length = get_word_length(text=text_reformatted, disregard_punctuation=True)
+    merged_df = surprisals.join(frequency.drop('Word', axis=1))
+    merged_df = merged_df.join(word_length.drop('Word', axis=1))
     return merged_df
+
+
+if __name__ == '__main__':
+    tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
+    model = GPT2LMHeadModel.from_pretrained('gpt2')
+    input_text = "hello, the how are you top-level?"
+    words_with_metrics = get_metrics(text=input_text, tokenizer=tokenizer, model=model)
+    print(words_with_metrics)
