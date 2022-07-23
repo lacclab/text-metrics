@@ -17,7 +17,7 @@ def _get_surp(text: str, tokenizer, model) -> list[tuple[str, float]]:
     :param tokenizer: should be compatible with model.
     :return: list of tuples of (subword, surprisal values).
     """
-    text = tokenizer.bos_token + text + tokenizer.eos_token  # add beginning of sentence token
+    text = text# + tokenizer.eos_token  # add beginning of sentence token
     ids = torch.tensor(tokenizer.encode(text))
     toks = tokenizer.tokenize(text)
 
@@ -28,7 +28,7 @@ def _get_surp(text: str, tokenizer, model) -> list[tuple[str, float]]:
     log_probs = - (1 / torch.log(torch.tensor(2.))) * log_softmax(outputs[0], dim=1)
 
     out = []
-    for ind, word_id in enumerate(ids[1:], 1):
+    for ind, word_id in enumerate(ids, 0):
         word_log_prob = float(log_probs[ind - 1, word_id])
         out.append((toks[ind], word_log_prob))
     return out
@@ -89,7 +89,7 @@ def get_surprisal(text: str, tokenizer, model) -> pd.DataFrame:
     """
 
     tok_surps = _get_surp(text, tokenizer, model)
-    word_surps = _join_surp(text.split(), tok_surps)
+    word_surps = _join_surp(text.split(), tok_surps)#[:-1])
     return pd.DataFrame(word_surps, columns=['Word', 'Surprisal'])
 
 
@@ -119,6 +119,7 @@ def get_frequency(text: str) -> pd.DataFrame:
         'Wordfreq_Frequency': [-np.log2(word_frequency(word, lang='en')) for word in words], # TODO replace inf with zero
     }
     # TODO improve loading of file according to https://stackoverflow.com/questions/6028000/how-to-read-a-static-file-from-inside-a-python-package
+    #  and https://setuptools.pypa.io/en/latest/userguide/datafiles.html
     data = pkg_resources.resource_stream(__name__, "data/SUBTLEXus74286wordstextversion_lower.tsv")
     subtlex = pd.read_csv(data, sep='\t', index_col=0, )
     subtlex['Frequency'] = -np.log2(subtlex['Count'] / subtlex.sum()[0])

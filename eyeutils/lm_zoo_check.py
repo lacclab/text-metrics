@@ -1,10 +1,8 @@
-import subprocess
-
+import lm_zoo as zoo
 import pandas as pd
-import lm_zoo as Z
 
 
-def _get_suprisal(text_path: str, model):
+def _get_lmzoo_surprisal(text: str, model: str) -> pd.DataFrame:
     """
     Extract surprisal values from model for text tokenized by tokenizer.
 
@@ -12,21 +10,11 @@ def _get_suprisal(text_path: str, model):
     :param model: model used to get surprisal values.
     """
 
-    #
-    # text_file = open("sample.txt", "w")
-
-    # n = text_file.write(text_file)
-    # text_file.close()
-    df = Z.get_surprisals(Z.get_registry()['gpt2'], ['hello, how are you?'])
-    # command = 'lm-zoo get-surprisals ' + model + ' ' + text_path
-
-    # output = subprocess.getoutput(command)
-
-    # data = output
-    # df = pd.DataFrame([x.split('\t') for x in data.split('\n')])
-
+    df = zoo.get_surprisals(zoo.get_registry()[model], [text])
+    df = df.reset_index(drop=True).rename(columns=['Word', 'Surprisal'])
     return df
 
+
 if __name__ == '__main__':
-    df = _get_suprisal(text_path='data/sample_text.txt', model='gpt2')
+    df = _get_lmzoo_surprisal(text='hello, how are you?', model='gpt2')
     print(df)
