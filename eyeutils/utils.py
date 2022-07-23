@@ -116,7 +116,7 @@ def get_frequency(text: str) -> pd.DataFrame:
     words = text.split()
     frequencies = {
         'Word': words,
-        'Wordfreq_Frequency': [-np.log2(word_frequency(word, lang='en')) for word in words], # TODO replace inf with zero
+        'Wordfreq_Frequency': [-np.log2(word_frequency(word, lang='en', minimum=1e-11)) for word in words], # minimum equal to ~36.5
     }
     # TODO improve loading of file according to https://stackoverflow.com/questions/6028000/how-to-read-a-static-file-from-inside-a-python-package
     #  and https://setuptools.pypa.io/en/latest/userguide/datafiles.html
@@ -124,6 +124,7 @@ def get_frequency(text: str) -> pd.DataFrame:
     subtlex = pd.read_csv(data, sep='\t', index_col=0, )
     subtlex['Frequency'] = -np.log2(subtlex['Count'] / subtlex.sum()[0])
 
+    # TODO subtlex freq should be 'inf' if missing, not zero?
     subtlex_freqs = []
     for word in words:
         tokens = tokenize(word, lang='en')

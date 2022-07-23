@@ -2,7 +2,7 @@ from setuptools import setup
 # TODO improve with https://python-poetry.org/
 setup(
     name='eyeutils',
-    version='0.4.3',
+    version='0.5.0',
     packages=['eyeutils'],
     url='',
     license='',
