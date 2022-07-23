@@ -1,7 +1,7 @@
 import pandas as pd
 from transformers import GPT2Tokenizer, GPT2LMHeadModel
 from eyeutils.utils import get_metrics
-
+import tqdm
 
 def add_metrics_to_eye_tracking(eye_tracking_data: pd.DataFrame, tokenizer, model) -> pd.DataFrame:
     """
@@ -25,8 +25,8 @@ def add_metrics_to_eye_tracking(eye_tracking_data: pd.DataFrame, tokenizer, mode
     without_duplicates = eye_tracking_data[['paragraph_id', 'article_title', 'level', 'IA_ID', 'IA_LABEL']].drop_duplicates()
     text_from_et = without_duplicates.groupby(['paragraph_id', 'article_title', 'level'])['IA_LABEL'].apply(list)
     text_from_et = text_from_et.apply(lambda text: " ".join(text))
-    for row in text_from_et.reset_index().itertuples():
-        print(row.Index, row.IA_LABEL)
+
+    for row in tqdm.tqdm(text_from_et.reset_index().itertuples()):
         merged_df = get_metrics(text=row.IA_LABEL, tokenizer=tokenizer, model=model)
         merged_df['paragraph_id'] = row.paragraph_id
         merged_df['article_title'] = row.article_title
@@ -46,7 +46,7 @@ def add_metrics_to_eye_tracking(eye_tracking_data: pd.DataFrame, tokenizer, mode
 
 if __name__ == '__main__':
 
-    et_data = pd.read_csv(r"C:\Users\omers\PycharmProjects\eye_tracking\data\et_data.csv")
+    et_data = pd.read_csv(r"C:\Users\omers\PycharmProjects\eye_tracking\data\et_data_small.csv")
     tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
     model = GPT2LMHeadModel.from_pretrained('gpt2')
     et_data_enriched = add_metrics_to_eye_tracking(eye_tracking_data=et_data, tokenizer=tokenizer, model=model)
