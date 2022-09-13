@@ -13,5 +13,7 @@ setup(
     package_data={'': ['data/*.tsv']},
     extras_require = {
             'lm_zoo': ['lm-zoo']
-        }
+        },
+    install_requires=
+        'wordfreq'
 )
