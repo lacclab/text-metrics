@@ -2,7 +2,7 @@ from setuptools import setup
 # TODO improve with https://python-poetry.org/
 setup(
     name='eyeutils',
-    version='0.5.0',
+    version='0.5.1',
     packages=['eyeutils'],
     url='',
     license='',
@@ -13,5 +13,7 @@ setup(
     package_data={'': ['data/*.tsv']},
     extras_require = {
             'lm_zoo': ['lm-zoo']
-        }
+        },
+    install_requires=
+        'wordfreq'
 )
