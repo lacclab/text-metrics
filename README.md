@@ -63,6 +63,8 @@ Tested with package versions:
 
 - pandas 1.3.4
 - python 3.9.7
-- wordfreq 2.5.1
+- wordfreq 3.0.3
 - transformers 4.12.0
 - pytorch 1.10.0
+
+Run `python -m doctest -v eyeutils/utils.py` before committing to ensure that the docstrings are up to date.
