@@ -15,5 +15,5 @@ setup(
             'lm_zoo': ['lm-zoo']
         },
     install_requires=
-        'wordfreq=3.0.3'
+        'wordfreq==3.0.3'
 )
