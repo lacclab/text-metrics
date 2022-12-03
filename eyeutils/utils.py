@@ -1,12 +1,12 @@
 import pandas as pd
 import torch
 from torch.nn.functional import log_softmax
-from transformers import GPT2Tokenizer, GPT2LMHeadModel
+from transformers import AutoTokenizer, AutoModelForCausalLM
 from wordfreq import word_frequency, tokenize
 import numpy as np
 import string
 import pkg_resources
-
+from typing import List
 
 def _get_surp(text: str, tokenizer, model) -> list[tuple[str, float]]:
     """
@@ -76,16 +76,16 @@ def get_surprisal(text: str, tokenizer, model) -> pd.DataFrame:
     :param tokenizer: how to tokenize the text. Should match the model input expectations.
     :return: pd.DataFrame, each row represents a word and its surprisal.
 
-    >>> tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
-    >>> model = GPT2LMHeadModel.from_pretrained('gpt2')
+    >>> tokenizer = AutoTokenizer.from_pretrained('gpt2')
+    >>> model = AutoModelForCausalLM.from_pretrained('gpt2')
     >>> text = "hello, how are you?"
     >>> surprisals = get_surprisal(text=text,tokenizer=tokenizer,model=model)
     >>> surprisals
          Word  Surprisal
-    0  hello,  23.840695
-    1     how   6.321535
-    2     are   1.971676
-    3    you?   2.309872
+    0  hello,  19.789963
+    1     how  12.335088
+    2     are   5.128458
+    3    you?   3.704563
     """
 
     tok_surps = _get_surp(text, tokenizer, model)
@@ -204,7 +204,7 @@ def clean_text(raw_text: str) -> str:
         .replace("ï", "i")
 
 
-def get_metrics(text: str, tokenizer, model) -> pd.DataFrame:
+def get_metrics(text: str, surprisal_extraction_model_names: List[str]) -> pd.DataFrame:
     """
     Wrapper function to get the surprisal and frequency values and length of each word in the text.
 
@@ -213,30 +213,37 @@ def get_metrics(text: str, tokenizer, model) -> pd.DataFrame:
     :param tokenizer: how to tokenize the text. Should match the model input expectations.
     :return: pd.DataFrame, each row represents a word, its surprisal and frequency.
 
-    >>> tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
-    >>> model = GPT2LMHeadModel.from_pretrained('gpt2')
     >>> text = "hello, how are you?"
-    >>> words_with_metrics = get_metrics(text=text,tokenizer=tokenizer,model=model)
+    >>> words_with_metrics = get_metrics(text=text, surprisal_extraction_model_names=['gpt2'])
     >>> words_with_metrics
-         Word  Surprisal  Wordfreq_Frequency  subtlex_Frequency  Length
-    0  hello,  23.840695           14.217323          10.701528       5
-    1     how   6.321535            9.166697           8.317353       3
-    2     are   1.971676            7.506353           7.548023       3
-    3    you?   2.309872            6.710284           4.541699       3
+         Word  Length  Wordfreq_Frequency  subtlex_Frequency  gpt2_Surprisal
+    0  hello,       5           14.217323          10.701528       19.789963
+    1     how       3            9.166697           8.317353       12.335088
+    2     are       3            7.506353           7.548023        5.128458
+    3    you?       3            6.710284           4.541699        3.704563
     """
 
     text_reformatted = clean_text(text)
-    surprisals = get_surprisal(text=text_reformatted, tokenizer=tokenizer, model=model)
+    surprisals = []
+    for model_name in surprisal_extraction_model_names:
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model = AutoModelForCausalLM.from_pretrained(model_name)
+        surprisal = get_surprisal(text=text_reformatted, tokenizer=tokenizer, model=model)
+        surprisal.rename(columns={'Surprisal': f'{model_name}_Surprisal'}, inplace=True)
+        surprisals.append(surprisal)
+    
     frequency = get_frequency(text=text_reformatted)
     word_length = get_word_length(text=text_reformatted, disregard_punctuation=True)
-    merged_df = surprisals.join(frequency.drop('Word', axis=1))
-    merged_df = merged_df.join(word_length.drop('Word', axis=1))
+    
+    merged_df = word_length.join(frequency.drop('Word', axis=1))
+    for surprisal in surprisals:
+        merged_df = merged_df.join(surprisal.drop('Word', axis=1))
+        
     return merged_df
 
 
 if __name__ == '__main__':
-    tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
-    model = GPT2LMHeadModel.from_pretrained('gpt2')
+    model_names = ['gpt2', 'gpt2']
     input_text = "hello, how are you?"
-    words_with_metrics = get_metrics(text=input_text, tokenizer=tokenizer, model=model)
+    words_with_metrics = get_metrics(text=input_text, surprisal_extraction_model_names=model_names)
     print(words_with_metrics)
