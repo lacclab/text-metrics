@@ -204,7 +204,7 @@ def clean_text(raw_text: str) -> str:
         .replace("ï", "i")
 
 
-def get_metrics(text: str, surprisal_extraction_model_names: List[str]) -> pd.DataFrame:
+def get_metrics(text: str, models: List[AutoModelForCausalLM], tokenizers: List[AutoTokenizer], model_names: List[str]) -> pd.DataFrame:
     """
     Wrapper function to get the surprisal and frequency values and length of each word in the text.
 
@@ -213,8 +213,10 @@ def get_metrics(text: str, surprisal_extraction_model_names: List[str]) -> pd.Da
     :param tokenizer: how to tokenize the text. Should match the model input expectations.
     :return: pd.DataFrame, each row represents a word, its surprisal and frequency.
 
+    >>> tokenizer = AutoTokenizer.from_pretrained('gpt2')
+    >>> model = AutoModelForCausalLM.from_pretrained('gpt2')
     >>> text = "hello, how are you?"
-    >>> words_with_metrics = get_metrics(text=text, surprisal_extraction_model_names=['gpt2'])
+    >>> words_with_metrics = get_metrics(text=text,tokenizers=[tokenizer],models=[model], model_names=['gpt2'])
     >>> words_with_metrics
          Word  Length  Wordfreq_Frequency  subtlex_Frequency  gpt2_Surprisal
     0  hello,       5           14.217323          10.701528       19.789963
@@ -225,9 +227,7 @@ def get_metrics(text: str, surprisal_extraction_model_names: List[str]) -> pd.Da
 
     text_reformatted = clean_text(text)
     surprisals = []
-    for model_name in surprisal_extraction_model_names:
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
-        model = AutoModelForCausalLM.from_pretrained(model_name)
+    for model, tokenizer, model_name in zip(models, tokenizers, model_names):
         surprisal = get_surprisal(text=text_reformatted, tokenizer=tokenizer, model=model)
         surprisal.rename(columns={'Surprisal': f'{model_name}_Surprisal'}, inplace=True)
         surprisals.append(surprisal)
