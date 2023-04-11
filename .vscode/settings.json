@@ -1,0 +1,14 @@
+{
+    "python.testing.pytestArgs": [
+        "eyeutils"
+    ],
+    "python.testing.unittestEnabled": true,
+    "python.testing.pytestEnabled": false,
+    "python.testing.unittestArgs": [
+        "-v",
+        "-s",
+        "./eyeutils",
+        "-p",
+        "test_*.py"
+    ]
+}
