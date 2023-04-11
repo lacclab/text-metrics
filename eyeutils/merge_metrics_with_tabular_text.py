@@ -43,18 +43,18 @@ def add_metrics_tabular_text(tabular_text: pd.DataFrame, surprisal_extraction_mo
     metric_df = pd.concat(metric_dfs, axis=0)
 
     # Join metrics with original data
-    et_data_enriched = tabular_text.merge(metric_df, how='left',
+    tabular_text_enriched = tabular_text.merge(metric_df, how='left',
                                           suffixes=('', '_SHUBI'),
                                           on=['item', 'wordnum'],
                                           validate='many_to_one')
 
-    et_data_enriched.drop(['Word', 'Length_SHUBI'], axis=1, inplace=True)
-    et_data_enriched['subtlex_Frequency'].replace(0, 'NA', inplace=True)
-    et_data_enriched.to_csv('stim_with_surprisal.csv', index=False)
-    return et_data_enriched
+    tabular_text_enriched.drop(['Word', 'Length_SHUBI'], axis=1, inplace=True)
+    tabular_text_enriched['subtlex_Frequency'].replace(0, 'NA', inplace=True)
+    return tabular_text_enriched
 
 
 if __name__ == '__main__':
 
     stim = pd.read_csv('stim.csv', keep_default_na=False)
-    add_metrics_tabular_text(stim, ['gpt2'])
+    tabular_text_enriched = add_metrics_tabular_text(stim, ['gpt2'])
+    tabular_text_enriched.to_csv('stim_with_surprisal.csv', index=False)

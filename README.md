@@ -13,7 +13,7 @@ from eyeutils.utils import get_metrics
 
 text = "Hello, how are you?"
 
-words_with_metrics = get_metrics(text=text,surprisal_extraction_model_names=['gpt2'])
+words_with_metrics = get_metrics(text=text,surprisal_extraction_model_names=['gpt2']) # Not updated for new API
 print(words_with_metrics)
 ```
 
@@ -28,6 +28,11 @@ Should result in
 
 `merge_metrics_with_eye_movements.py` takes the [OneStopQA](https://huggingface.co/datasets/onestop_qa) data from HuggingFace,
 retrieves surprisal and frequency for each word and merges it with the eye movement report.
+
+`merge_metrics_with_tabular_text.py` takes the a tabular text file (e.g., a csv file),
+retrieves surprisal and frequency for each word, by item (sentence/paragraph) and merges it with the tabular text file. 
+
+Note, in both functions the columns are hard-coded, so you may need to change them to match your data.
 
 ```python
 from eyeutils.merge_metrics_with_eye_movements import add_metrics_to_eye_tracking
