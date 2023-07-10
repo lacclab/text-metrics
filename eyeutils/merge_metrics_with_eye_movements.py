@@ -5,13 +5,16 @@ from typing import List
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
 
-def add_metrics_to_eye_tracking(eye_tracking_data: pd.DataFrame, surprisal_extraction_model_names: List[str]) -> pd.DataFrame:
+def add_metrics_to_eye_tracking(eye_tracking_data: pd.DataFrame, 
+                                surprisal_extraction_model_names: List[str],
+                                add_question_in_prompt: bool = False) -> pd.DataFrame:
     """
     Adds metrics to each row in the eye-tracking report
 
     :param eye_tracking_data: The eye-tracking report, each row represents a word that was read in a given trial.
                                 Should have columns - ['article_title', 'paragraph_id', 'level', 'IA_ID']
     :param surprisal_extraction_model_names: the name of model/tokenizer to extract surprisal values from.
+    :param add_question_in_prompt: whether to add the question in the prompt for the surprisal extraction model (applies for Hunting only).
     :return: eye-tracking report with surprisal, frequency and word length columns
 
     >>> et_data = load_et_data() # some function to load the eye tracking report
@@ -24,11 +27,11 @@ def add_metrics_to_eye_tracking(eye_tracking_data: pd.DataFrame, surprisal_extra
     
     # Remove duplicates
     without_duplicates = eye_tracking_data[[
-        'paragraph_id', 'article_title', 'level', 'IA_ID', 'IA_LABEL']].drop_duplicates()
+        'paragraph_id', 'article_title', 'level', 'IA_ID', 'has_preview', 'question', 'IA_LABEL']].drop_duplicates()
 
     # Group by paragraph_id, article_title, level and join all IA_LABELs (words)
     text_from_et = without_duplicates.groupby(
-        ['paragraph_id', 'article_title', 'level'])['IA_LABEL'].apply(list)
+        ['paragraph_id', 'article_title', 'level', 'has_preview', 'question'])['IA_LABEL'].apply(list)
     
     text_from_et = text_from_et.apply(lambda text: " ".join(text))
 
@@ -39,11 +42,20 @@ def add_metrics_to_eye_tracking(eye_tracking_data: pd.DataFrame, surprisal_extra
         model_name) for model_name in surprisal_extraction_model_names]
     
     for row in tqdm.tqdm(text_from_et.reset_index().itertuples()):
-        merged_df = get_metrics(text=row.IA_LABEL, models=models,
+        
+        if row.has_preview == 'Hunting' and add_question_in_prompt:
+            text_input = row.question + " " + row.IA_LABEL
+        else:
+            text_input = row.IA_LABEL
+            
+        merged_df = get_metrics(text=text_input, models=models,
                                 tokenizers=tokenizers, model_names=surprisal_extraction_model_names)
-        merged_df['paragraph_id'] = row.paragraph_id
-        merged_df['article_title'] = row.article_title
-        merged_df['level'] = row.level
+        
+        # Remove the question from the output
+        if row.has_preview == 'Hunting' and add_question_in_prompt:
+            merged_df = merged_df[len(row.question.split()):]
+            
+        merged_df[['paragraph_id', 'article_title', 'level', 'has_preview', 'question']] = row.paragraph_id, row.article_title, row.level, row.has_preview, row.question
         merged_df.reset_index(inplace=True)
         merged_df = merged_df.rename(
             {'index': 'IA_ID', 'Word': 'IA_LABEL'}, axis=1)
@@ -52,7 +64,7 @@ def add_metrics_to_eye_tracking(eye_tracking_data: pd.DataFrame, surprisal_extra
 
     # Join metrics with eye_tracking_data
     et_data_enriched = eye_tracking_data.merge(metric_df, how='left',
-                                               on=['article_title',
+                                               on=['article_title', 'has_preview', 'question',
                                                    'paragraph_id', 'level', 'IA_ID'],
                                                validate='many_to_one')
 
@@ -62,6 +74,6 @@ def add_metrics_to_eye_tracking(eye_tracking_data: pd.DataFrame, surprisal_extra
 if __name__ == '__main__':
 
     et_data = pd.read_csv(
-        r"C:\Users\omers\PycharmProjects\eye_tracking\data\et_data_small.csv")
+        "/Users/shubi/eye-tracking/data/interim/et_data_enriched.csv")
     et_data_enriched = add_metrics_to_eye_tracking(
         eye_tracking_data=et_data, surprisal_extraction_model_names=['gpt2'])
