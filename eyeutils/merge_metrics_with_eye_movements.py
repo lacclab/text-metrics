@@ -42,9 +42,10 @@ def add_metrics_to_eye_tracking(eye_tracking_data: pd.DataFrame,
         model_name) for model_name in surprisal_extraction_model_names]
     
     for row in tqdm.tqdm(text_from_et.reset_index().itertuples()):
-        
-        if row.has_preview == 'Hunting' and add_question_in_prompt:
+        actually_add_question_in_prompt = add_question_in_prompt and row.has_preview == 'Hunting'
+        if actually_add_question_in_prompt:
             text_input = row.question + " " + row.IA_LABEL
+            num_question_words = len(row.question.split())
         else:
             text_input = row.IA_LABEL
             
@@ -52,15 +53,15 @@ def add_metrics_to_eye_tracking(eye_tracking_data: pd.DataFrame,
                                 tokenizers=tokenizers, model_names=surprisal_extraction_model_names)
         
         # Remove the question from the output
-        if row.has_preview == 'Hunting' and add_question_in_prompt:
-            merged_df = merged_df[len(row.question.split()):]
+        if actually_add_question_in_prompt:
+            merged_df = merged_df[num_question_words:]
             
         merged_df[['paragraph_id', 'article_title', 'level', 'has_preview', 'question']] = row.paragraph_id, row.article_title, row.level, row.has_preview, row.question
         merged_df.reset_index(inplace=True)
         merged_df = merged_df.rename(
             {'index': 'IA_ID', 'Word': 'IA_LABEL'}, axis=1)
-        if row.has_preview == 'Hunting' and add_question_in_prompt:
-            merged_df['IA_ID']-= len(row.question.split())
+        if actually_add_question_in_prompt:
+            merged_df['IA_ID']-= num_question_words
         metric_dfs.append(merged_df)
     metric_df = pd.concat(metric_dfs, axis=0)
 
