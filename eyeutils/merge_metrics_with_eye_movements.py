@@ -59,6 +59,8 @@ def add_metrics_to_eye_tracking(eye_tracking_data: pd.DataFrame,
         merged_df.reset_index(inplace=True)
         merged_df = merged_df.rename(
             {'index': 'IA_ID', 'Word': 'IA_LABEL'}, axis=1)
+        if row.has_preview == 'Hunting' and add_question_in_prompt:
+            merged_df['IA_ID']-= len(row.question.split())
         metric_dfs.append(merged_df)
     metric_df = pd.concat(metric_dfs, axis=0)
 
