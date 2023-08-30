@@ -8,6 +8,7 @@ import string
 import pkg_resources
 from typing import List
 
+
 def _get_surp(text: str, tokenizer, model) -> list[tuple[str, float]]:
     """
     Extract surprisal values from model for text tokenized by tokenizer.
@@ -17,7 +18,7 @@ def _get_surp(text: str, tokenizer, model) -> list[tuple[str, float]]:
     :param tokenizer: should be compatible with model.
     :return: list of tuples of (subword, surprisal values).
     """
-    text = text# + tokenizer.eos_token  # add beginning of sentence token
+    text = text  # + tokenizer.eos_token  # add beginning of sentence token
     ids = torch.tensor(tokenizer.encode(text))
     toks = tokenizer.tokenize(text)
 
@@ -25,7 +26,7 @@ def _get_surp(text: str, tokenizer, model) -> list[tuple[str, float]]:
         outputs = model(ids)
 
     # log softmax converted to base 2. More numerically stable than -log2(softmax(outputs[0], dim=1))
-    log_probs = - (1 / torch.log(torch.tensor(2.))) * log_softmax(outputs[0], dim=1)
+    log_probs = -(1 / torch.log(torch.tensor(2.0))) * log_softmax(outputs[0], dim=1)
 
     out = []
     for ind, word_id in enumerate(ids, 0):
@@ -46,10 +47,18 @@ def _join_surp(words: list[str], tok_surps: list[tuple[str, float]]):
     word_surp, word_ind, within_word_position = 0, 0, 0
     word_till_now = ""
     for tok, tok_surp in tok_surps:
-        tok_str = tok[1:] if tok.startswith('Ġ') else tok
-        tok_str = tok_str.replace("Â", "").replace("âĤ¬", "€")  # Converts back euro and gbp sign
-        assert (words[word_ind][within_word_position:within_word_position + len(tok_str)] == tok_str), \
-            words[word_ind][within_word_position:within_word_position + len(tok_str)] + '!=' + tok_str
+        tok_str = tok[1:] if tok.startswith("Ġ") else tok
+        tok_str = tok_str.replace("Â", "").replace(
+            "âĤ¬", "€"
+        )  # Converts back euro and gbp sign
+        assert (
+            words[word_ind][within_word_position : within_word_position + len(tok_str)]
+            == tok_str
+        ), (
+            words[word_ind][within_word_position : within_word_position + len(tok_str)]
+            + "!="
+            + tok_str
+        )
         word_surp += tok_surp
         within_word_position += len(tok_str)
         word_till_now += tok_str
@@ -89,8 +98,8 @@ def get_surprisal(text: str, tokenizer, model) -> pd.DataFrame:
     """
 
     tok_surps = _get_surp(text, tokenizer, model)
-    word_surps = _join_surp(text.split(), tok_surps)#[:-1])
-    return pd.DataFrame(word_surps, columns=['Word', 'Surprisal'])
+    word_surps = _join_surp(text.split(), tok_surps)  # [:-1])
+    return pd.DataFrame(word_surps, columns=["Word", "Surprisal"])
 
 
 def get_frequency(text: str) -> pd.DataFrame:
@@ -115,34 +124,42 @@ def get_frequency(text: str) -> pd.DataFrame:
     """
     words = text.split()
     frequencies = {
-        'Word': words,
-        'Wordfreq_Frequency': [-np.log2(word_frequency(word, lang='en', minimum=1e-11)) for word in words], # minimum equal to ~36.5
+        "Word": words,
+        "Wordfreq_Frequency": [
+            -np.log2(word_frequency(word, lang="en", minimum=1e-11)) for word in words
+        ],  # minimum equal to ~36.5
     }
     # TODO improve loading of file according to https://stackoverflow.com/questions/6028000/how-to-read-a-static-file-from-inside-a-python-package
     #  and https://setuptools.pypa.io/en/latest/userguide/datafiles.html
-    data = pkg_resources.resource_stream(__name__, "data/SUBTLEXus74286wordstextversion_lower.tsv")
-    subtlex = pd.read_csv(data, sep='\t', index_col=0, )
-    subtlex['Frequency'] = -np.log2(subtlex['Count'] / subtlex.sum()[0])
+    data = pkg_resources.resource_stream(
+        __name__, "data/SUBTLEXus74286wordstextversion_lower.tsv"
+    )
+    subtlex = pd.read_csv(
+        data,
+        sep="\t",
+        index_col=0,
+    )
+    subtlex["Frequency"] = -np.log2(subtlex["Count"] / subtlex.sum()[0])
 
     # TODO subtlex freq should be 'inf' if missing, not zero?
     subtlex_freqs = []
     for word in words:
-        tokens = tokenize(word, lang='en')
+        tokens = tokenize(word, lang="en")
         one_over_result = 0.0
         try:
             for token in tokens:
-                one_over_result += 1.0 / subtlex.loc[token, 'Frequency']
+                one_over_result += 1.0 / subtlex.loc[token, "Frequency"]
         except KeyError:
             subtlex_freq = 0
         else:
             subtlex_freq = 1.0 / one_over_result if one_over_result != 0 else 0
         subtlex_freqs.append(subtlex_freq)
-    frequencies['subtlex_Frequency'] = subtlex_freqs
+    frequencies["subtlex_Frequency"] = subtlex_freqs
 
     return pd.DataFrame(frequencies)
 
 
-def get_word_length(text: str, disregard_punctuation: bool=True) -> pd.DataFrame:
+def get_word_length(text: str, disregard_punctuation: bool = True) -> pd.DataFrame:
     """
     Get the length of each word in text.
 
@@ -175,13 +192,16 @@ def get_word_length(text: str, disregard_punctuation: bool=True) -> pd.DataFrame
 
     """
     word_lengths = {
-        'Word': text.split(),
+        "Word": text.split(),
     }
     if disregard_punctuation:
         #     text = text.translate(str.maketrans('', '', string.punctuation))
-        word_lengths['Length'] = [len(word.translate(str.maketrans('', '', string.punctuation))) for word in text.split()]
+        word_lengths["Length"] = [
+            len(word.translate(str.maketrans("", "", string.punctuation)))
+            for word in text.split()
+        ]
     else:
-        word_lengths['Length'] = [len(word) for word in text.split()]
+        word_lengths["Length"] = [len(word) for word in text.split()]
 
     return pd.DataFrame(word_lengths)
 
@@ -191,20 +211,26 @@ def clean_text(raw_text: str) -> str:
     Replaces the problematic characters in the raw_text, made for OnestopQA.
     E.g., "ë" -> "e"
     """
-    return raw_text \
-        .replace('’', "'") \
-        .replace("“", "\"") \
-        .replace("”", "\"") \
-        .replace("–", "-") \
-        .replace("…", "...") \
-        .replace("‘", "'") \
-        .replace("é", "e") \
-        .replace("ë", "e") \
-        .replace("ﬁ", "fi") \
+    return (
+        raw_text.replace("’", "'")
+        .replace("“", '"')
+        .replace("”", '"')
+        .replace("–", "-")
+        .replace("…", "...")
+        .replace("‘", "'")
+        .replace("é", "e")
+        .replace("ë", "e")
+        .replace("ﬁ", "fi")
         .replace("ï", "i")
+    )
 
 
-def get_metrics(text: str, models: List[AutoModelForCausalLM], tokenizers: List[AutoTokenizer], model_names: List[str]) -> pd.DataFrame:
+def get_metrics(
+    text: str,
+    models: List[AutoModelForCausalLM],
+    tokenizers: List[AutoTokenizer],
+    model_names: List[str],
+) -> pd.DataFrame:
     """
     Wrapper function to get the surprisal and frequency values and length of each word in the text.
 
@@ -228,22 +254,26 @@ def get_metrics(text: str, models: List[AutoModelForCausalLM], tokenizers: List[
     text_reformatted = clean_text(text)
     surprisals = []
     for model, tokenizer, model_name in zip(models, tokenizers, model_names):
-        surprisal = get_surprisal(text=text_reformatted, tokenizer=tokenizer, model=model)
-        surprisal.rename(columns={'Surprisal': f'{model_name}_Surprisal'}, inplace=True)
+        surprisal = get_surprisal(
+            text=text_reformatted, tokenizer=tokenizer, model=model
+        )
+        surprisal.rename(columns={"Surprisal": f"{model_name}_Surprisal"}, inplace=True)
         surprisals.append(surprisal)
-    
+
     frequency = get_frequency(text=text_reformatted)
     word_length = get_word_length(text=text_reformatted, disregard_punctuation=True)
-    
-    merged_df = word_length.join(frequency.drop('Word', axis=1))
+
+    merged_df = word_length.join(frequency.drop("Word", axis=1))
     for surprisal in surprisals:
-        merged_df = merged_df.join(surprisal.drop('Word', axis=1))
-        
+        merged_df = merged_df.join(surprisal.drop("Word", axis=1))
+
     return merged_df
 
 
-if __name__ == '__main__':
-    model_names = ['gpt2', 'gpt2']
+if __name__ == "__main__":
+    model_names = ["gpt2", "gpt2"]
     input_text = "hello, how are you?"
-    words_with_metrics = get_metrics(text=input_text, surprisal_extraction_model_names=model_names)
+    words_with_metrics = get_metrics(
+        text=input_text, surprisal_extraction_model_names=model_names
+    )
     print(words_with_metrics)

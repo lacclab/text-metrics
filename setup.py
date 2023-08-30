@@ -1,9 +1,9 @@
 from setuptools import setup
 # TODO improve with https://python-poetry.org/
 setup(
-    name='eyeutils',
+    name='text_metrics',
     version='0.7.3',
-    packages=['eyeutils'],
+    packages=['text_metrics'],
     url='',
     license='',
     author='Omer Shubi',

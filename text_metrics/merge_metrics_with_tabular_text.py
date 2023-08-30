@@ -1,5 +1,5 @@
 import pandas as pd
-from eyeutils.utils import get_metrics
+from text_metrics.utils import get_metrics
 import tqdm
 from typing import List
 from transformers import AutoTokenizer, AutoModelForCausalLM
@@ -31,8 +31,9 @@ def add_metrics_tabular_text(tabular_text: pd.DataFrame, surprisal_extraction_mo
         model_name) for model_name in surprisal_extraction_model_names]
     models = [AutoModelForCausalLM.from_pretrained(
         model_name) for model_name in surprisal_extraction_model_names]
+    
 
-    for index, sentence in tqdm.tqdm(grouped_text.items()):
+    for index, sentence in tqdm.tqdm(grouped_text.items(), total=len(grouped_text), desc='Extracting metrics'):
         merged_df = get_metrics(text=sentence, models=models,
                                 tokenizers=tokenizers, model_names=surprisal_extraction_model_names)
         merged_df['item'] = index
@@ -48,7 +49,7 @@ def add_metrics_tabular_text(tabular_text: pd.DataFrame, surprisal_extraction_mo
                                           on=['item', 'wordnum'],
                                           validate='many_to_one')
 
-    tabular_text_enriched.drop(['Word', 'Length_SHUBI'], axis=1, inplace=True)
+    tabular_text_enriched.drop(['Word'], axis=1, inplace=True)
     tabular_text_enriched['subtlex_Frequency'].replace(0, 'NA', inplace=True)
     return tabular_text_enriched
 
