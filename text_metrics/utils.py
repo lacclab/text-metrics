@@ -9,6 +9,63 @@ from typing import List
 import pandas as pd
 import spacy
 
+content_word_dict = {
+    'PUNCT': 'NO_CONTENT',
+    'PROPN': 'CONTENT',
+    'NOUN': 'CONTENT',
+    'PRON': 'NO_CONTENT',
+    'VERB': 'CONTENT',
+    'SCONJ': 'NO_CONTENT',
+    'NUM': 'NO_CONTENT',
+    'DET': 'NO_CONTENT',
+    'CCONJ': 'NO_CONTENT',
+    'ADP': 'NO_CONTENT',
+    'AUX': 'NO_CONTENT',
+    'ADV': 'CONTENT',
+    'ADJ': 'CONTENT',
+    'INTJ': 'NO_CONTENT',
+    'X': 'NO_CONTENT',
+    'PART': 'NO_CONTENT',
+    'NaN': 'UNKNOWN',
+}
+
+reduced_pos_dict = {
+    'PUNCT': 'FUNC',
+    'PROPN': 'NOUN',
+    'NOUN': 'NOUN',
+    'PRON': 'FUNC',
+    'VERB': 'VERB',
+    'SCONJ': 'FUNC',
+    'NUM': 'FUNC',
+    'DET': 'FUNC',
+    'CCONJ': 'FUNC',
+    'ADP': 'FUNC',
+    'AUX': 'FUNC',
+    'ADV': 'ADJ',
+    'ADJ': 'ADJ', 'INTJ': 'FUNC',
+    'X': 'FUNC',
+    'PART': 'FUNC',
+    'NaN': 'UNKNOWN',
+}
+
+
+def is_content_word(pos: str) -> bool:
+    """
+    Checks if the pos is a content word.
+    """
+    if pos in content_word_dict.keys():
+        return content_word_dict[pos] == 'CONTENT'
+    return False
+
+
+def get_reduced_pos(pos: str) -> str:
+    """
+    Returns the reduced pos tag of the pos tag.
+    """
+    if pos in reduced_pos_dict.keys():
+        return reduced_pos_dict[pos]
+    return "UNKNOWN"
+
 
 def get_parsing_features(text, nlp_model):
     """
@@ -20,13 +77,13 @@ def get_parsing_features(text, nlp_model):
     """
     features = {}
     doc = nlp_model(text)
-    token_idx =0
+    token_idx = 0
     word_idx = 0
     token_idx2word_idx = {}
     while token_idx < len(doc):
         token = doc[token_idx]
         if token.pos_ == 'PUNCT' and bool(token.whitespace_):
-            features[word_idx] = (token.i, token)
+            features[word_idx] = [(token.i, token)]
             token_idx2word_idx[token.i] = word_idx
             token_idx += 1
             word_idx += 1
@@ -44,84 +101,62 @@ def get_parsing_features(text, nlp_model):
             token_idx += 1
 
             if len(accumulated_tokens) == 1:
-                features[word_idx]= accumulated_tokens[0]
+                features[word_idx] = accumulated_tokens
                 token_idx2word_idx[accumulated_tokens[0][0]] = word_idx
                 word_idx += 1
             elif len(accumulated_tokens) > 1:
-                features[word_idx]= accumulated_tokens
+                features[word_idx] = accumulated_tokens
                 for token in accumulated_tokens:
                     token_idx2word_idx[token[0]] = word_idx
                 word_idx += 1
             else:
-                continue
-
-
+                raise ValueError("text is empty")
 
     pos = {}
     for word_idx, word in features.items():
-        if type(word) == tuple:
-            pos[word_idx] = word[1].pos_
-        else:
-            pos[word_idx] = [token[1].pos_ for token in word]
+        pos[word_idx] = [token[1].pos_ for token in word]
 
     tags = {}
     for word_idx, word in features.items():
-        if type(word) == tuple:
-            tags[word_idx] = word[1].tag_
-        else:
-            tags[word_idx] = [token[1].tag_ for token in word]
+        tags[word_idx] = [token[1].tag_ for token in word]
 
-
-    heads ={}
+    heads = {}
     for word_idx, word in features.items():
-        if type(word) == tuple:
-            heads[word_idx] = token_idx2word_idx[word[1].head.i] if word[1].head.i in token_idx2word_idx.keys() else -1
-        else:
-            heads[word_idx] = [token_idx2word_idx[token[1].head.i] if token[1].head.i in token_idx2word_idx.keys() else -1 for token in word]
-
+        heads[word_idx] = [token_idx2word_idx[token[1].head.i] if token[1].head.i in token_idx2word_idx.keys() else -1
+                               for token in word]
 
     relationships = {}
     for word_idx, word in features.items():
-        if type(word) == tuple:
-            relationships[word_idx] = word[1].dep_
-        else:
-            relationships[word_idx] = [token[1].dep_ for token in word]
+        relationships[word_idx] = [token[1].dep_ for token in word]
 
     lefts = {}
     for word_idx, word in features.items():
-        if type(word) == tuple:
-            lefts[word_idx] = len([d for d in word[1].lefts if d.i in token_idx2word_idx.keys()])
-        else:
-            lefts[word_idx] = [len([d for d in token[1].lefts if d.i in token_idx2word_idx.keys()]) for token in word]
+        lefts[word_idx] = [len([d for d in token[1].lefts if d.i in token_idx2word_idx.keys()]) for token in word]
 
     rights = {}
     for word_idx, word in features.items():
-        if type(word) == tuple:
-            rights[word_idx] = len([d for d in word[1].rights if d.i in token_idx2word_idx.keys()])
-        else:
-            rights[word_idx] = [len([d for d in token[1].rights if d.i in token_idx2word_idx.keys()]) for token in word]
+        rights[word_idx] = [len([d for d in token[1].rights if d.i in token_idx2word_idx.keys()]) for token in word]
 
     distance2head = {}
     for word_idx, word in features.items():
-        if type(word) == tuple:
-            distance2head[word_idx] = abs(word_idx - heads[word_idx]) if word_idx in heads.keys() else -1
-        else:
-            distance2head[word_idx] = [abs(token_idx2word_idx[token[0]] - token_idx2word_idx[token[1].head.i]) if token[1].head.i in token_idx2word_idx.keys() else -1 for token in word]
+        distance2head[word_idx] = [abs(token_idx2word_idx[token[0]] - token_idx2word_idx[token[1].head.i]) if token[1].head.i in token_idx2word_idx.keys() else -1
+                                   for token in word]
 
     morphs = {}
     for word_idx, word in features.items():
-        if type(word) == tuple:
-            morphs[word_idx] = [f for f in word[1].morph]
-        else:
-            morphs[word_idx] = [[f for f in token[1].morph] for token in word]
+        morphs[word_idx] = [[f for f in token[1].morph] for token in word]
 
     entities = {}
     for word_idx, word in features.items():
-        if type(word) == tuple:
-            entities[word_idx] = word[1].ent_type_ if word[1].ent_type_ != "" else None
-        else:
-            entities[word_idx] = [token[1].ent_type_ if token[1].ent_type_ != '' else None for token in word]
+        entities[word_idx] = [token[1].ent_type_ if token[1].ent_type_ != '' else None for token in word]
 
+    content_words = {}
+    for word_idx, word in features.items():
+        content_words[word_idx] = [is_content_word(token[1].pos_) for token in word]
+
+    reduced_pos = {}
+    for word_idx, word in features.items():
+        reduced_pos[word_idx] = [get_reduced_pos(token[1].pos_) for token in word]
 
     res = {
         "Word": text.split(),
@@ -133,10 +168,11 @@ def get_parsing_features(text, nlp_model):
         "n_Rights": list(rights.values()),
         "Distance2Head": list(distance2head.values()),
         "Morph": list(morphs.values()),
-        "Entity": list(entities.values())
+        "Entity": list(entities.values()),
+        "Is_content_word": list(content_words.values()),
+        "Reduced_POS": list(reduced_pos.values())
     }
     return pd.DataFrame(res)
-
 
 def _get_surp(text: str, tokenizer, model) -> list[tuple[str, float]]:
     """
