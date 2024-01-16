@@ -1,8 +1,9 @@
 from typing import List
-
+from pathlib import Path
 import pandas as pd
 import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
+import spacy
 
 from text_metrics.utils import get_metrics
 
@@ -10,6 +11,7 @@ from text_metrics.utils import get_metrics
 def add_metrics_to_eye_tracking(
     eye_tracking_data: pd.DataFrame,
     surprisal_extraction_model_names: List[str],
+    nlp_model_name: str,
     add_question_in_prompt: bool = False,
 ) -> pd.DataFrame:
     """
@@ -18,6 +20,7 @@ def add_metrics_to_eye_tracking(
     :param eye_tracking_data: The eye-tracking report, each row represents a word that was read in a given trial.
                                 Should have columns - ['article_title', 'paragraph_id', 'level', 'IA_ID']
     :param surprisal_extraction_model_names: the name of model/tokenizer to extract surprisal values from.
+    :param nlp_model: the name of the spacy model to use for parsing the text.
     :param add_question_in_prompt: whether to add the question in the prompt for the surprisal extraction model (applies for Hunting only).
     :return: eye-tracking report with surprisal, frequency and word length columns
 
@@ -59,6 +62,9 @@ def add_metrics_to_eye_tracking(
         for model_name in surprisal_extraction_model_names
     ]
 
+    nlp_model = spacy.load(nlp_model_name)
+
+
     for row in tqdm.tqdm(
         text_from_et.reset_index().itertuples(),
         total=len(text_from_et),
@@ -73,11 +79,14 @@ def add_metrics_to_eye_tracking(
         else:
             text_input = row.IA_LABEL
 
+
+        # add here new metrics
         merged_df = get_metrics(
             text=text_input,
             models=models,
             tokenizers=tokenizers,
             model_names=surprisal_extraction_model_names,
+            parsing_model=nlp_model,
         )
 
         # Remove the question from the output
