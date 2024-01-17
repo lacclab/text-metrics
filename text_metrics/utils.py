@@ -67,7 +67,7 @@ def get_reduced_pos(pos: str) -> str:
     return "UNKNOWN"
 
 
-def get_parsing_features(text: str, nlp_model) -> pd.DataFrame:
+def get_parsing_features(text: str, nlp_model: spacy.Language) -> pd.DataFrame:
     """
     Extracts the parsing features from the text using spacy.
     :param text: str, the text to extract features from.
