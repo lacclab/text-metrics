@@ -67,6 +67,20 @@ def get_reduced_pos(pos: str) -> str:
         return reduced_pos_dict[pos]
     return "UNKNOWN"
 
+def get_direction(head_idx: int, word_idx: int) -> str:
+    """
+    Returns the direction of the word from the head word.
+    :param head_idx: int, the head index.
+    :param word_idx: int, the word index.
+    :return: str, the direction of the word from the head.
+    """
+    if head_idx > word_idx:
+        return 'RIGHT'
+    elif head_idx < word_idx:
+        return 'LEFT'
+    else:
+        return 'SELF'
+
 
 def get_parsing_features(text: str, nlp_model: spacy.Language) -> pd.DataFrame:
     """
@@ -79,7 +93,7 @@ def get_parsing_features(text: str, nlp_model: spacy.Language) -> pd.DataFrame:
     features = {}
     doc = nlp_model(text)
     token_idx = 0
-    word_idx = 0
+    word_idx = 1
     token_idx2word_idx = {}
     while token_idx < len(doc):
         token = doc[token_idx]
@@ -104,24 +118,26 @@ def get_parsing_features(text: str, nlp_model: spacy.Language) -> pd.DataFrame:
     for word_idx, word in features.items():
         word_features = defaultdict(list)
         for ind, token in word:
+            word_features['Token'].append(token.text)
             word_features['POS'].append(token.pos_)
             word_features['TAG'].append(token.tag_)
-            word_features['Head_idx'].append(
+            word_features['Token_idx'].append(ind)
+            word_features['Head_word_idx'].append(
                 token_idx2word_idx[token.head.i] if token.head.i in token_idx2word_idx.keys() else -1)
             word_features['Relationship'].append(token.dep_)
             word_features['n_Lefts'].append(len([d for d in token.lefts if d.i in token_idx2word_idx.keys()]))
             word_features['n_Rights'].append(len([d for d in token.rights if d.i in token_idx2word_idx.keys()]))
             word_features['Distance2Head'].append(abs(token_idx2word_idx[ind] - token_idx2word_idx[
                 token.head.i]) if token.head.i in token_idx2word_idx.keys() else -1)
+            word_features['Head_Direction'].append(get_direction(token_idx2word_idx[token.head.i], token_idx2word_idx[ind]) if token.head.i in token_idx2word_idx.keys() else 'UNKNOWN')
             word_features['Morph'].append([f for f in token.morph])
             word_features['Entity'].append(token.ent_type_ if token.ent_type_ != '' else None)
-            word_features['Is_Content_Word'].append(is_content_word(token.pos_))
-            word_features['Reduced_POS'].append(get_reduced_pos(token.pos_))
 
         first_token_features = {}
-        first_token_features['Word'] = words[word_idx]
+        first_token_features['Word'] = words[word_idx-1]
+        first_token_features['Word_idx'] = word_idx
         for feature, values_list in word_features.items():
-            first_token_features[feature] = values_list[0]
+            first_token_features[feature] = values_list
         res.append(first_token_features)
 
     return pd.DataFrame(res)
