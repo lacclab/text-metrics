@@ -8,6 +8,7 @@ import pkg_resources
 from typing import List
 import pandas as pd
 import spacy
+from collections import defaultdict
 
 content_word_dict = {
     'PUNCT': 'NO_CONTENT',
@@ -67,7 +68,7 @@ def get_reduced_pos(pos: str) -> str:
     return "UNKNOWN"
 
 
-def get_parsing_features(text: str, nlp_model) -> pd.DataFrame:
+def get_parsing_features(text: str, nlp_model: spacy.Language) -> pd.DataFrame:
     """
     Extracts the parsing features from the text using spacy.
     :param text: str, the text to extract features from.
@@ -98,42 +99,32 @@ def get_parsing_features(text: str, nlp_model) -> pd.DataFrame:
             token_idx2word_idx[token[0]] = word_idx
         word_idx += 1
 
-    pos, tags, heads, relationships, lefts, rights, distance2head, morphs, entities, content_words, reduced_pos = {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}
-    for word_idx, word in features.items():
-        pos[word_idx] = [token[1].pos_ for token in word]
-        tags[word_idx] = [token[1].tag_ for token in word]
-        heads[word_idx] = [token_idx2word_idx[token[1].head.i] if token[1].head.i in token_idx2word_idx.keys() else -1
-                           for token in word]
-        relationships[word_idx] = [token[1].dep_ for token in word]
-        lefts[word_idx] = [len([d for d in token[1].lefts if d.i in token_idx2word_idx.keys()]) for token in word]
-        rights[word_idx] = [len([d for d in token[1].rights if d.i in token_idx2word_idx.keys()]) for token in word]
-        distance2head[word_idx] = [abs(token_idx2word_idx[token[0]] - token_idx2word_idx[token[1].head.i]) if token[
-                                                                                                                  1].head.i in token_idx2word_idx.keys() else -1
-                                   for token in word]
-        morphs[word_idx] = [[f for f in token[1].morph] for token in word]
-        entities[word_idx] = [token[1].ent_type_ if token[1].ent_type_ != '' else None for token in word]
-        content_words[word_idx] = [is_content_word(token[1].pos_) for token in word]
-        reduced_pos[word_idx] = [get_reduced_pos(token[1].pos_) for token in word]
-
-    data = []
     words = text.split()
-    for word_idx, word in enumerate(words):
-        word_data = {
-            "Word": word,
-            "POS": pos[word_idx][0],
-            "Tags": tags[word_idx][0],
-            "Head_idx": heads[word_idx][0],
-            "Relationship": relationships[word_idx][0],
-            "n_Lefts": lefts[word_idx][0],
-            "n_Rights": rights[word_idx][0],
-            "Distance2Head": distance2head[word_idx][0],
-            "Morph": morphs[word_idx][0],
-            "Entity": entities[word_idx][0],
-            "Is_content_word": content_words[word_idx][0],
-            "Reduced_POS": reduced_pos[word_idx][0]
-        }
-        data.append(word_data)
-    return pd.DataFrame(data)
+    res = []
+    for word_idx, word in features.items():
+        word_features = defaultdict(list)
+        for ind, token in word:
+            word_features['POS'].append(token.pos_)
+            word_features['TAG'].append(token.tag_)
+            word_features['Head_idx'].append(
+                token_idx2word_idx[token.head.i] if token.head.i in token_idx2word_idx.keys() else -1)
+            word_features['Relationship'].append(token.dep_)
+            word_features['n_Lefts'].append(len([d for d in token.lefts if d.i in token_idx2word_idx.keys()]))
+            word_features['n_Rights'].append(len([d for d in token.rights if d.i in token_idx2word_idx.keys()]))
+            word_features['Distance2Head'].append(abs(token_idx2word_idx[ind] - token_idx2word_idx[
+                token.head.i]) if token.head.i in token_idx2word_idx.keys() else -1)
+            word_features['Morph'].append([f for f in token.morph])
+            word_features['Entity'].append(token.ent_type_ if token.ent_type_ != '' else None)
+            word_features['Is_Content_Word'].append(is_content_word(token.pos_))
+            word_features['Reduced_POS'].append(get_reduced_pos(token.pos_))
+
+        first_token_features = {}
+        first_token_features['Word'] = words[word_idx]
+        for feature, values_list in word_features.items():
+            first_token_features[feature] = values_list[0]
+        res.append(first_token_features)
+
+    return pd.DataFrame(res)
 
 
 def _get_surp(text: str, tokenizer, model) -> list[tuple[str, float]]:
@@ -357,7 +348,7 @@ def get_metrics(
     models: List[AutoModelForCausalLM],
     tokenizers: List[AutoTokenizer],
     model_names: List[str],
-    parsing_model
+    parsing_model: spacy.Language
 ) -> pd.DataFrame:
     """
     Wrapper function to get the surprisal and frequency values and length of each word in the text.
