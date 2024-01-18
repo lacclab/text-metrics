@@ -132,6 +132,8 @@ def get_parsing_features(text: str, nlp_model: spacy.Language) -> pd.DataFrame:
             word_features['Head_Direction'].append(get_direction(token_idx2word_idx[token.head.i], token_idx2word_idx[ind]) if token.head.i in token_idx2word_idx.keys() else 'UNKNOWN')
             word_features['Morph'].append([f for f in token.morph])
             word_features['Entity'].append(token.ent_type_ if token.ent_type_ != '' else None)
+            word_features['Is_Content_Word'].append(is_content_word(token.pos_))
+            word_features['Reduced_POS'].append(get_reduced_pos(token.pos_))
 
         first_token_features = {}
         first_token_features['Word'] = words[word_idx-1]
