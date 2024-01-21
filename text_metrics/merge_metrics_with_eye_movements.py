@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Literal
 from pathlib import Path
 import pandas as pd
 import tqdm
@@ -10,7 +10,8 @@ from text_metrics.utils import get_metrics
 def add_metrics_to_eye_tracking(
     eye_tracking_data: pd.DataFrame,
     surprisal_extraction_model_names: List[str],
-    nlp_model_name: str,
+    spacy_model_name: str,
+    parsing_mode: Literal['keep-first','keep-all'],
     add_question_in_prompt: bool = False,
 ) -> pd.DataFrame:
     """
@@ -61,7 +62,7 @@ def add_metrics_to_eye_tracking(
         for model_name in surprisal_extraction_model_names
     ]
 
-    nlp_model = spacy.load(nlp_model_name)
+    spacy_model = spacy.load(spacy_model_name)
 
 
     for row in tqdm.tqdm(
@@ -85,7 +86,8 @@ def add_metrics_to_eye_tracking(
             models=models,
             tokenizers=tokenizers,
             model_names=surprisal_extraction_model_names,
-            parsing_model=nlp_model,
+            parsing_model=spacy_model,
+            parsing_mode=parsing_mode,
         )
 
         # Remove the question from the output

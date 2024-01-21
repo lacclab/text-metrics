@@ -5,32 +5,31 @@ from wordfreq import word_frequency, tokenize
 import numpy as np
 import string
 import pkg_resources
-from typing import List
+from typing import List, Literal
 import pandas as pd
 import spacy
 from collections import defaultdict
 
-content_word_dict = {
-    'PUNCT': 'NO_CONTENT',
-    'PROPN': 'CONTENT',
-    'NOUN': 'CONTENT',
-    'PRON': 'NO_CONTENT',
-    'VERB': 'CONTENT',
-    'SCONJ': 'NO_CONTENT',
-    'NUM': 'NO_CONTENT',
-    'DET': 'NO_CONTENT',
-    'CCONJ': 'NO_CONTENT',
-    'ADP': 'NO_CONTENT',
-    'AUX': 'NO_CONTENT',
-    'ADV': 'CONTENT',
-    'ADJ': 'CONTENT',
-    'INTJ': 'NO_CONTENT',
-    'X': 'NO_CONTENT',
-    'PART': 'NO_CONTENT',
-    'NaN': 'UNKNOWN',
+CONTENT_WORDS = {
+    'PUNCT': False,
+    'PROPN': True,
+    'NOUN': True,
+    'PRON': False,
+    'VERB': True,
+    'SCONJ': False,
+    'NUM': False,
+    'DET': False,
+    'CCONJ': False,
+    'ADP': False,
+    'AUX': False,
+    'ADV': True,
+    'ADJ': True,
+    'INTJ': False,
+    'X': False,
+    'PART': False,
 }
 
-reduced_pos_dict = {
+REDUCED_POS = {
     'PUNCT': 'FUNC',
     'PROPN': 'NOUN',
     'NOUN': 'NOUN',
@@ -46,7 +45,6 @@ reduced_pos_dict = {
     'ADJ': 'ADJ', 'INTJ': 'FUNC',
     'X': 'FUNC',
     'PART': 'FUNC',
-    'NaN': 'UNKNOWN',
 }
 
 
@@ -54,18 +52,14 @@ def is_content_word(pos: str) -> bool:
     """
     Checks if the pos is a content word.
     """
-    if pos in content_word_dict.keys():
-        return content_word_dict[pos] == 'CONTENT'
-    return False
+    return CONTENT_WORDS.get(pos, False)
 
 
 def get_reduced_pos(pos: str) -> str:
     """
     Returns the reduced pos tag of the pos tag.
     """
-    if pos in reduced_pos_dict.keys():
-        return reduced_pos_dict[pos]
-    return "UNKNOWN"
+    return REDUCED_POS.get(pos, "UNKNOWN")
 
 def get_direction(head_idx: int, word_idx: int) -> str:
     """
@@ -82,16 +76,16 @@ def get_direction(head_idx: int, word_idx: int) -> str:
         return 'SELF'
 
 
-def get_parsing_features(text: str, nlp_model: spacy.Language) -> pd.DataFrame:
+def get_parsing_features(text: str, spacy_model: spacy.Language, mode: Literal['keep-first','keep-all']='keep-first') -> pd.DataFrame:
     """
     Extracts the parsing features from the text using spacy.
     :param text: str, the text to extract features from.
-    :param nlp_model: the spacy model to use.
+    :param spacy_model: the spacy model to use.
     :return: pd.DataFrame, each row represents a word and its parsing features. for compressed words (e.g., "don't"),
      each feature has a list of all the sub-words' features.
     """
     features = {}
-    doc = nlp_model(text)
+    doc = spacy_model(text)
     token_idx = 0
     word_idx = 1
     token_idx2word_idx = {}
@@ -117,6 +111,7 @@ def get_parsing_features(text: str, nlp_model: spacy.Language) -> pd.DataFrame:
     res = []
     for word_idx, word in features.items():
         word_features = defaultdict(list)
+        word_features['Word_idx'] = word_idx
         for ind, token in word:
             word_features['Token'].append(token.text)
             word_features['POS'].append(token.pos_)
@@ -135,14 +130,13 @@ def get_parsing_features(text: str, nlp_model: spacy.Language) -> pd.DataFrame:
             word_features['Is_Content_Word'].append(is_content_word(token.pos_))
             word_features['Reduced_POS'].append(get_reduced_pos(token.pos_))
 
-        first_token_features = {}
-        first_token_features['Word'] = words[word_idx-1]
-        first_token_features['Word_idx'] = word_idx
-        for feature, values_list in word_features.items():
-            first_token_features[feature] = values_list
-        res.append(first_token_features)
+    res = pd.DataFrame(res)
+    if mode=='keep-all':
+        continue
+    if mode=='keep-first':
+        res = res.applymap(lambda x: x[0] if isinstance(x, list) and len(x) > 0 else x)
 
-    return pd.DataFrame(res)
+    return res
 
 
 def _get_surp(text: str, tokenizer, model) -> list[tuple[str, float]]:
@@ -366,7 +360,8 @@ def get_metrics(
     models: List[AutoModelForCausalLM],
     tokenizers: List[AutoTokenizer],
     model_names: List[str],
-    parsing_model: spacy.Language
+    parsing_model: spacy.Language,
+    parsing_mode: Literal['keep-first','keep-all'],
 ) -> pd.DataFrame:
     """
     Wrapper function to get the surprisal and frequency values and length of each word in the text.
@@ -407,8 +402,8 @@ def get_metrics(
 
 
     # Add here the other metrics - per word in the given paragraph
-    parsing_features = get_parsing_features(text_reformatted, parsing_model)
-    merged_df = merged_df.join(parsing_features.drop("Word", axis=1))
+    parsing_features = get_parsing_features(text_reformatted, parsing_model, parsing_mode)
+    merged_df = merged_df.join(parsing_features)
 
 
     return merged_df
