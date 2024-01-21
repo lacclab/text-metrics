@@ -58,6 +58,8 @@ Frequency is extracted via the [wordfreq](https://github.com/rspeer/wordfreq) pa
 - See the package documentation for more in-depth descriptions.
 
 ## Setup
+Before running the scripts, you need to download the en_core_web_sm model from spacy:
+`python -m spacy download en_core_web_sm`
 
 To install the package -
 `pip install git+https://github.com/lacclab/text-metrics.git`.
@@ -71,5 +73,6 @@ Tested with package versions:
 - wordfreq 3.0.3
 - transformers 4.12.0
 - pytorch 1.10.0
+- spacy 3.1.4
 
 Run `python -m doctest -v text_metrics/utils.py` before committing to ensure that the docstrings are up to date.
