@@ -132,7 +132,7 @@ def get_parsing_features(text: str, spacy_model: spacy.Language, mode: Literal['
 
     res = pd.DataFrame(res)
     if mode=='keep-all':
-        continue
+        pass
     if mode=='keep-first':
         res = res.applymap(lambda x: x[0] if isinstance(x, list) and len(x) > 0 else x)
 
