@@ -160,7 +160,7 @@ def get_parsing_features(
     if mode == "keep-all":
         pass
     elif mode == "keep-first":
-        final_res = final_res.applymap(
+        final_res = final_res.map(
             lambda x: x[0] if isinstance(x, list) and len(x) > 0 else x
         )
 
@@ -300,7 +300,7 @@ def get_frequency(text: str) -> pd.DataFrame:
         sep="\t",
         index_col=0,
     )
-    subtlex["Frequency"] = -np.log2(subtlex["Count"] / subtlex.sum()[0])
+    subtlex["Frequency"] = -np.log2(subtlex["Count"] / subtlex.sum().iloc[0])
 
     #  TODO subtlex freq should be 'inf' if missing, not zero?
     subtlex_freqs = []
