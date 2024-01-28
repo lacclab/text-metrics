@@ -11,7 +11,7 @@ def add_metrics_to_eye_tracking(
     eye_tracking_data: pd.DataFrame,
     surprisal_extraction_model_names: List[str],
     spacy_model_name: str,
-    parsing_mode: Literal['keep-first','keep-all'],
+    parsing_mode: Literal['keep-first','keep-all','re-tokenize'],
     add_question_in_prompt: bool = False,
 ) -> pd.DataFrame:
     """
