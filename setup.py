@@ -2,7 +2,7 @@ from setuptools import setup
 # TODO improve with https://python-poetry.org/
 setup(
     name='text_metrics',
-    version='0.9.4',
+    version='0.9.5',
     packages=['text_metrics'],
     url='https://github.com/lacclab/text-metrics',
     license='',
