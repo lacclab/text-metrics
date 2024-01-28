@@ -21,6 +21,7 @@ def add_metrics_to_eye_tracking(
                                 Should have columns - ['article_title', 'paragraph_id', 'level', 'IA_ID']
     :param surprisal_extraction_model_names: the name of model/tokenizer to extract surprisal values from.
     :param spacy_model_name: the name of the spacy model to use for parsing the text.
+    :param parsing_mode: type of parsing to use. one of ['keep-first','keep-all','re-tokenize']
     :param add_question_in_prompt: whether to add the question in the prompt for the surprisal extraction model (applies for Hunting only).
     :return: eye-tracking report with surprisal, frequency and word length columns
 

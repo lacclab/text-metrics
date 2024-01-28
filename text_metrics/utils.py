@@ -89,6 +89,7 @@ def get_parsing_features(
     Extracts the parsing features from the text using spacy.
     :param text: str, the text to extract features from.
     :param spacy_model: the spacy model to use.
+    :param mode: type of parsing to use. one of ['keep-first','keep-all','re-tokenize']
     :return: pd.DataFrame, each row represents a word and its parsing features.
             for compressed words (e.g., "don't"),
      each feature has a list of all the sub-words' features.
@@ -427,6 +428,7 @@ def get_metrics(
     :param model: the model to extract surprisal values from.
     :param tokenizer: how to tokenize the text. Should match the model input expectations.
     :param parsing_model: the spacy model to use for parsing the text.
+    :param parsing_mode: type of parsing to use. one of ['keep-first','keep-all','re-tokenize']
     :return: pd.DataFrame, each row represents a word, its surprisal and frequency.
 
     >>> tokenizer = AutoTokenizer.from_pretrained('gpt2')
