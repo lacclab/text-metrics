@@ -1,52 +1,53 @@
+""" This module contains the functions for extracting the metrics from the text. """
+import string
+from collections import defaultdict
+from typing import List, Literal
+
+import numpy as np
+import pandas as pd
+import pkg_resources
+import spacy
 import torch
 from torch.nn.functional import log_softmax
-from transformers import AutoTokenizer, AutoModelForCausalLM
-from wordfreq import word_frequency, tokenize
-import numpy as np
-import string
-import pkg_resources
-from typing import List
-import pandas as pd
-import spacy
-from collections import defaultdict
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from wordfreq import tokenize, word_frequency
 
-content_word_dict = {
-    'PUNCT': 'NO_CONTENT',
-    'PROPN': 'CONTENT',
-    'NOUN': 'CONTENT',
-    'PRON': 'NO_CONTENT',
-    'VERB': 'CONTENT',
-    'SCONJ': 'NO_CONTENT',
-    'NUM': 'NO_CONTENT',
-    'DET': 'NO_CONTENT',
-    'CCONJ': 'NO_CONTENT',
-    'ADP': 'NO_CONTENT',
-    'AUX': 'NO_CONTENT',
-    'ADV': 'CONTENT',
-    'ADJ': 'CONTENT',
-    'INTJ': 'NO_CONTENT',
-    'X': 'NO_CONTENT',
-    'PART': 'NO_CONTENT',
-    'NaN': 'UNKNOWN',
+CONTENT_WORDS = {
+    "PUNCT": False,
+    "PROPN": True,
+    "NOUN": True,
+    "PRON": False,
+    "VERB": True,
+    "SCONJ": False,
+    "NUM": False,
+    "DET": False,
+    "CCONJ": False,
+    "ADP": False,
+    "AUX": False,
+    "ADV": True,
+    "ADJ": True,
+    "INTJ": False,
+    "X": False,
+    "PART": False,
 }
 
-reduced_pos_dict = {
-    'PUNCT': 'FUNC',
-    'PROPN': 'NOUN',
-    'NOUN': 'NOUN',
-    'PRON': 'FUNC',
-    'VERB': 'VERB',
-    'SCONJ': 'FUNC',
-    'NUM': 'FUNC',
-    'DET': 'FUNC',
-    'CCONJ': 'FUNC',
-    'ADP': 'FUNC',
-    'AUX': 'FUNC',
-    'ADV': 'ADJ',
-    'ADJ': 'ADJ', 'INTJ': 'FUNC',
-    'X': 'FUNC',
-    'PART': 'FUNC',
-    'NaN': 'UNKNOWN',
+REDUCED_POS = {
+    "PUNCT": "FUNC",
+    "PROPN": "NOUN",
+    "NOUN": "NOUN",
+    "PRON": "FUNC",
+    "VERB": "VERB",
+    "SCONJ": "FUNC",
+    "NUM": "FUNC",
+    "DET": "FUNC",
+    "CCONJ": "FUNC",
+    "ADP": "FUNC",
+    "AUX": "FUNC",
+    "ADV": "ADJ",
+    "ADJ": "ADJ",
+    "INTJ": "FUNC",
+    "X": "FUNC",
+    "PART": "FUNC",
 }
 
 
@@ -54,18 +55,15 @@ def is_content_word(pos: str) -> bool:
     """
     Checks if the pos is a content word.
     """
-    if pos in content_word_dict.keys():
-        return content_word_dict[pos] == 'CONTENT'
-    return False
+    return CONTENT_WORDS.get(pos, False)
 
 
 def get_reduced_pos(pos: str) -> str:
     """
     Returns the reduced pos tag of the pos tag.
     """
-    if pos in reduced_pos_dict.keys():
-        return reduced_pos_dict[pos]
-    return "UNKNOWN"
+    return REDUCED_POS.get(pos, "UNKNOWN")
+
 
 def get_direction(head_idx: int, word_idx: int) -> str:
     """
@@ -75,23 +73,28 @@ def get_direction(head_idx: int, word_idx: int) -> str:
     :return: str, the direction of the word from the head.
     """
     if head_idx > word_idx:
-        return 'RIGHT'
+        return "RIGHT"
     elif head_idx < word_idx:
-        return 'LEFT'
+        return "LEFT"
     else:
-        return 'SELF'
+        return "SELF"
 
 
-def get_parsing_features(text: str, nlp_model: spacy.Language) -> pd.DataFrame:
+def get_parsing_features(
+    text: str,
+    spacy_model: spacy.Language,
+    mode: Literal["keep-first", "keep-all"] = "keep-first",
+) -> pd.DataFrame:
     """
     Extracts the parsing features from the text using spacy.
     :param text: str, the text to extract features from.
-    :param nlp_model: the spacy model to use.
-    :return: pd.DataFrame, each row represents a word and its parsing features. for compressed words (e.g., "don't"),
+    :param spacy_model: the spacy model to use.
+    :return: pd.DataFrame, each row represents a word and its parsing features.
+            for compressed words (e.g., "don't"),
      each feature has a list of all the sub-words' features.
     """
     features = {}
-    doc = nlp_model(text)
+    doc = spacy_model(text)
     token_idx = 0
     word_idx = 1
     token_idx2word_idx = {}
@@ -113,36 +116,55 @@ def get_parsing_features(text: str, nlp_model: spacy.Language) -> pd.DataFrame:
             token_idx2word_idx[token[0]] = word_idx
         word_idx += 1
 
-    words = text.split()
     res = []
     for word_idx, word in features.items():
-        word_features = defaultdict(list)
+        word_features: dict[str, list[list[str] | int | str | None]] = defaultdict(list)
+        word_features["Word_idx"] = [word_idx]
         for ind, token in word:
-            word_features['Token'].append(token.text)
-            word_features['POS'].append(token.pos_)
-            word_features['TAG'].append(token.tag_)
-            word_features['Token_idx'].append(ind)
-            word_features['Head_word_idx'].append(
-                token_idx2word_idx[token.head.i] if token.head.i in token_idx2word_idx.keys() else -1)
-            word_features['Relationship'].append(token.dep_)
-            word_features['n_Lefts'].append(len([d for d in token.lefts if d.i in token_idx2word_idx.keys()]))
-            word_features['n_Rights'].append(len([d for d in token.rights if d.i in token_idx2word_idx.keys()]))
-            word_features['Distance2Head'].append(abs(token_idx2word_idx[ind] - token_idx2word_idx[
-                token.head.i]) if token.head.i in token_idx2word_idx.keys() else -1)
-            word_features['Head_Direction'].append(get_direction(token_idx2word_idx[token.head.i], token_idx2word_idx[ind]) if token.head.i in token_idx2word_idx.keys() else 'UNKNOWN')
-            word_features['Morph'].append([f for f in token.morph])
-            word_features['Entity'].append(token.ent_type_ if token.ent_type_ != '' else None)
-            word_features['Is_Content_Word'].append(is_content_word(token.pos_))
-            word_features['Reduced_POS'].append(get_reduced_pos(token.pos_))
+            word_features["Token"].append(token.text)
+            word_features["POS"].append(token.pos_)
+            word_features["TAG"].append(token.tag_)
+            word_features["Token_idx"].append(ind)
+            word_features["Head_word_idx"].append(
+                token_idx2word_idx[token.head.i]
+                if token.head.i in token_idx2word_idx
+                else -1
+            )
+            word_features["Relationship"].append(token.dep_)
+            word_features["n_Lefts"].append(
+                len([d for d in token.lefts if d.i in token_idx2word_idx])
+            )
+            word_features["n_Rights"].append(
+                len([d for d in token.rights if d.i in token_idx2word_idx])
+            )
+            word_features["Distance2Head"].append(
+                abs(token_idx2word_idx[ind] - token_idx2word_idx[token.head.i])
+                if token.head.i in token_idx2word_idx
+                else -1
+            )
+            word_features["Head_Direction"].append(
+                get_direction(token_idx2word_idx[token.head.i], token_idx2word_idx[ind])
+                if token.head.i in token_idx2word_idx
+                else "UNKNOWN"
+            )
+            word_features["Morph"].append([f for f in token.morph])
+            word_features["Entity"].append(
+                token.ent_type_ if token.ent_type_ != "" else None
+            )
+            word_features["Is_Content_Word"].append(is_content_word(token.pos_))
+            word_features["Reduced_POS"].append(get_reduced_pos(token.pos_))
 
-        first_token_features = {}
-        first_token_features['Word'] = words[word_idx-1]
-        first_token_features['Word_idx'] = word_idx
-        for feature, values_list in word_features.items():
-            first_token_features[feature] = values_list
-        res.append(first_token_features)
+        res.append(word_features)
 
-    return pd.DataFrame(res)
+    final_res = pd.DataFrame(res)
+    if mode == "keep-all":
+        pass
+    elif mode == "keep-first":
+        final_res = final_res.map(
+            lambda x: x[0] if isinstance(x, list) and len(x) > 0 else x
+        )
+
+    return final_res
 
 
 def _get_surp(text: str, tokenizer, model) -> list[tuple[str, float]]:
@@ -154,14 +176,15 @@ def _get_surp(text: str, tokenizer, model) -> list[tuple[str, float]]:
     :param tokenizer: should be compatible with model.
     :return: list of tuples of (subword, surprisal values).
     """
-    text = text  # + tokenizer.eos_token  # add beginning of sentence token
+    # text = text  # + tokenizer.eos_token  # add beginning of sentence token
     ids = torch.tensor(tokenizer.encode(text))
     toks = tokenizer.tokenize(text)
 
     with torch.no_grad():
         outputs = model(ids)
 
-    # log softmax converted to base 2. More numerically stable than -log2(softmax(outputs[0], dim=1))
+    # log softmax converted to base 2.
+    # More numerically stable than -log2(softmax(outputs[0], dim=1))
     log_probs = -(1 / torch.log(torch.tensor(2.0))) * log_softmax(outputs[0], dim=1)
 
     out = []
@@ -214,7 +237,8 @@ def get_surprisal(text: str, tokenizer, model) -> pd.DataFrame:
     Get surprisal values for each word in text.
 
     Words are split by white space, and include adjacent punctuation.
-    A surprisal of a word is the sum of the surprisal of the subwords (as split by the tokenizer) that make up the word.
+    A surprisal of a word is the sum of the surprisal of the subwords
+    (as split by the tokenizer) that make up the word.
 
     :param text: str, the text to get surprisal values for.
     :param model: the model to extract surprisal values from.
@@ -244,7 +268,8 @@ def get_frequency(text: str) -> pd.DataFrame:
 
     Words are split by white space.
     A frequency of a word does not include adjacent punctuation.
-    Half harmonic mean is applied for complex words. E.g. freq(top-level) = 1/(1/freq(top) + 1/freq(level))
+    Half harmonic mean is applied for complex words.
+    E.g. freq(top-level) = 1/(1/freq(top) + 1/freq(level))
 
     :param text: str, the text to get frequencies for.
     :return: pd.DataFrame, each row represents a word and its frequency.
@@ -275,9 +300,9 @@ def get_frequency(text: str) -> pd.DataFrame:
         sep="\t",
         index_col=0,
     )
-    subtlex["Frequency"] = -np.log2(subtlex["Count"] / subtlex.sum()[0])
+    subtlex["Frequency"] = -np.log2(subtlex["Count"] / subtlex.sum().iloc[0])
 
-    # TODO subtlex freq should be 'inf' if missing, not zero?
+    #  TODO subtlex freq should be 'inf' if missing, not zero?
     subtlex_freqs = []
     for word in words:
         tokens = tokenize(word, lang="en")
@@ -302,7 +327,7 @@ def get_word_length(text: str, disregard_punctuation: bool = True) -> pd.DataFra
     Words are split by white space.
 
     :param text: str, the text to get lengths for.
-    :param disregard_punctuation: bool, controls whether to include adjacent punctuation (False) or not (True).
+    :param disregard_punctuation: bool, to include adjacent punctuation (False) or not (True).
     :return: pd.DataFrame, each row represents a word and its length.
 
     Examples
@@ -366,7 +391,8 @@ def get_metrics(
     models: List[AutoModelForCausalLM],
     tokenizers: List[AutoTokenizer],
     model_names: List[str],
-    parsing_model: spacy.Language
+    parsing_model: spacy.Language,
+    parsing_mode: Literal["keep-first", "keep-all"],
 ) -> pd.DataFrame:
     """
     Wrapper function to get the surprisal and frequency values and length of each word in the text.
@@ -382,7 +408,7 @@ def get_metrics(
     >>> text = "hello, how are you?"
     >>> words_with_metrics = get_metrics(text=text,tokenizers=[tokenizer],models=[model], model_names=['gpt2'])
     >>> words_with_metrics
-         Word  Length  Wordfreq_Frequency  subtlex_Frequency  gpt2_Surprisal
+            Word  Length  Wordfreq_Frequency  subtlex_Frequency  gpt2_Surprisal
     0  hello,       5           14.217323          10.701528       19.789963
     1     how       3            9.166697           8.317353       12.335088
     2     are       3            7.506353           7.548023        5.128458
@@ -405,11 +431,11 @@ def get_metrics(
     for surprisal in surprisals:
         merged_df = merged_df.join(surprisal.drop("Word", axis=1))
 
-
     # Add here the other metrics - per word in the given paragraph
-    parsing_features = get_parsing_features(text_reformatted, parsing_model)
-    merged_df = merged_df.join(parsing_features.drop("Word", axis=1))
-
+    parsing_features = get_parsing_features(
+        text_reformatted, parsing_model, parsing_mode
+    )
+    merged_df = merged_df.join(parsing_features)
 
     return merged_df
 
@@ -417,6 +443,7 @@ def get_metrics(
 if __name__ == "__main__":
     model_names = ["gpt2", "gpt2"]
     input_text = "hello, how are you?"
+    # TODO Example not updated
     words_with_metrics = get_metrics(
         text=input_text, surprisal_extraction_model_names=model_names
     )
