@@ -83,12 +83,13 @@ def get_direction(head_idx: int, word_idx: int) -> str:
 def get_parsing_features(
     text: str,
     spacy_model: spacy.Language,
-    mode: Literal["keep-first", "keep-all"] = "keep-first",
+    mode: Literal["keep-first", "keep-all", "re-tokenize"] = "re-tokenize",
 ) -> pd.DataFrame:
     """
     Extracts the parsing features from the text using spacy.
     :param text: str, the text to extract features from.
     :param spacy_model: the spacy model to use.
+    :param mode: type of parsing to use. one of ['keep-first','keep-all','re-tokenize']
     :return: pd.DataFrame, each row represents a word and its parsing features.
             for compressed words (e.g., "don't"),
      each feature has a list of all the sub-words' features.
@@ -98,6 +99,7 @@ def get_parsing_features(
     token_idx = 0
     word_idx = 1
     token_idx2word_idx = {}
+    spans_to_merge = []
     while token_idx < len(doc):
         token = doc[token_idx]
         accumulated_tokens = []
@@ -111,10 +113,24 @@ def get_parsing_features(
             accumulated_tokens.append((token.i, token))
         token_idx += 1
 
-        features[word_idx] = accumulated_tokens
-        for token in accumulated_tokens:
-            token_idx2word_idx[token[0]] = word_idx
-        word_idx += 1
+        if len(accumulated_tokens) > 1:
+            start_idx = accumulated_tokens[0][0]
+            end_idx = accumulated_tokens[-1][0] + 1
+            spans_to_merge.append(doc[start_idx:end_idx])
+
+        if mode == "keep-first" or mode == "keep-all":
+            features[word_idx] = accumulated_tokens
+            for token in accumulated_tokens:
+                token_idx2word_idx[token[0]] = word_idx
+            word_idx += 1
+
+    if mode == "re-tokenize":
+        with doc.retokenize() as retokenizer:
+            for span in spans_to_merge:
+                retokenizer.merge(span)
+        for word_idx, token in enumerate(doc):
+            features[word_idx+1] = [(token.i, token)]
+
 
     res = []
     for word_idx, word in features.items():
@@ -125,34 +141,41 @@ def get_parsing_features(
             word_features["POS"].append(token.pos_)
             word_features["TAG"].append(token.tag_)
             word_features["Token_idx"].append(ind)
-            word_features["Head_word_idx"].append(
-                token_idx2word_idx[token.head.i]
-                if token.head.i in token_idx2word_idx
-                else -1
-            )
             word_features["Relationship"].append(token.dep_)
-            word_features["n_Lefts"].append(
-                len([d for d in token.lefts if d.i in token_idx2word_idx])
-            )
-            word_features["n_Rights"].append(
-                len([d for d in token.rights if d.i in token_idx2word_idx])
-            )
-            word_features["Distance2Head"].append(
-                abs(token_idx2word_idx[ind] - token_idx2word_idx[token.head.i])
-                if token.head.i in token_idx2word_idx
-                else -1
-            )
-            word_features["Head_Direction"].append(
-                get_direction(token_idx2word_idx[token.head.i], token_idx2word_idx[ind])
-                if token.head.i in token_idx2word_idx
-                else "UNKNOWN"
-            )
             word_features["Morph"].append([f for f in token.morph])
             word_features["Entity"].append(
                 token.ent_type_ if token.ent_type_ != "" else None
             )
             word_features["Is_Content_Word"].append(is_content_word(token.pos_))
             word_features["Reduced_POS"].append(get_reduced_pos(token.pos_))
+            if mode == "keep-first" or mode == "keep-all":
+                word_features["Head_word_idx"].append(
+                    token_idx2word_idx[token.head.i]
+                    if token.head.i in token_idx2word_idx
+                    else -1
+                )
+                word_features["n_Lefts"].append(
+                    len([d for d in token.lefts if d.i in token_idx2word_idx])
+                )
+                word_features["n_Rights"].append(
+                    len([d for d in token.rights if d.i in token_idx2word_idx])
+                )
+                word_features["Distance2Head"].append(
+                    abs(token_idx2word_idx[ind] - token_idx2word_idx[token.head.i])
+                    if token.head.i in token_idx2word_idx
+                    else -1
+                )
+                word_features["Head_Direction"].append(
+                    get_direction(token_idx2word_idx[token.head.i], token_idx2word_idx[ind])
+                    if token.head.i in token_idx2word_idx
+                    else "UNKNOWN"
+                )
+            else:
+                word_features['Head_word_idx'].append(token.head.i + 1)
+                word_features['n_Lefts'].append(token.n_lefts)
+                word_features['n_Rights'].append(token.n_rights)
+                word_features['Distance2Head'].append(abs(token.head.i - token.i))
+                word_features['Head_Direction'].append(get_direction(token.head.i, token.i))
 
         res.append(word_features)
 
@@ -160,6 +183,10 @@ def get_parsing_features(
     if mode == "keep-all":
         pass
     elif mode == "keep-first":
+        final_res = final_res.map(
+            lambda x: x[0] if isinstance(x, list) and len(x) > 0 else x
+        )
+    elif mode == "re-tokenize":
         final_res = final_res.map(
             lambda x: x[0] if isinstance(x, list) and len(x) > 0 else x
         )
@@ -392,7 +419,7 @@ def get_metrics(
     tokenizers: List[AutoTokenizer],
     model_names: List[str],
     parsing_model: spacy.Language,
-    parsing_mode: Literal["keep-first", "keep-all"],
+    parsing_mode: Literal["keep-first", "keep-all", "re-tokenize"],
 ) -> pd.DataFrame:
     """
     Wrapper function to get the surprisal and frequency values and length of each word in the text.
@@ -401,6 +428,7 @@ def get_metrics(
     :param model: the model to extract surprisal values from.
     :param tokenizer: how to tokenize the text. Should match the model input expectations.
     :param parsing_model: the spacy model to use for parsing the text.
+    :param parsing_mode: type of parsing to use. one of ['keep-first','keep-all','re-tokenize']
     :return: pd.DataFrame, each row represents a word, its surprisal and frequency.
 
     >>> tokenizer = AutoTokenizer.from_pretrained('gpt2')
@@ -431,7 +459,6 @@ def get_metrics(
     for surprisal in surprisals:
         merged_df = merged_df.join(surprisal.drop("Word", axis=1))
 
-    # Add here the other metrics - per word in the given paragraph
     parsing_features = get_parsing_features(
         text_reformatted, parsing_model, parsing_mode
     )

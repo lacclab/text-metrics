@@ -11,7 +11,7 @@ def add_metrics_to_eye_tracking(
     eye_tracking_data: pd.DataFrame,
     surprisal_extraction_model_names: List[str],
     spacy_model_name: str,
-    parsing_mode: Literal['keep-first','keep-all'],
+    parsing_mode: Literal['keep-first','keep-all','re-tokenize'],
     add_question_in_prompt: bool = False,
 ) -> pd.DataFrame:
     """
@@ -20,7 +20,8 @@ def add_metrics_to_eye_tracking(
     :param eye_tracking_data: The eye-tracking report, each row represents a word that was read in a given trial.
                                 Should have columns - ['article_title', 'paragraph_id', 'level', 'IA_ID']
     :param surprisal_extraction_model_names: the name of model/tokenizer to extract surprisal values from.
-    :param nlp_model_name: the name of the spacy model to use for parsing the text.
+    :param spacy_model_name: the name of the spacy model to use for parsing the text.
+    :param parsing_mode: type of parsing to use. one of ['keep-first','keep-all','re-tokenize']
     :param add_question_in_prompt: whether to add the question in the prompt for the surprisal extraction model (applies for Hunting only).
     :return: eye-tracking report with surprisal, frequency and word length columns
 
