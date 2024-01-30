@@ -129,8 +129,7 @@ def get_parsing_features(
             for span in spans_to_merge:
                 retokenizer.merge(span)
         for word_idx, token in enumerate(doc):
-            features[word_idx+1] = [(token.i, token)]
-
+            features[word_idx + 1] = [(token.i, token)]
 
     res = []
     for word_idx, word in features.items():
@@ -166,16 +165,20 @@ def get_parsing_features(
                     else -1
                 )
                 word_features["Head_Direction"].append(
-                    get_direction(token_idx2word_idx[token.head.i], token_idx2word_idx[ind])
+                    get_direction(
+                        token_idx2word_idx[token.head.i], token_idx2word_idx[ind]
+                    )
                     if token.head.i in token_idx2word_idx
                     else "UNKNOWN"
                 )
             else:
-                word_features['Head_word_idx'].append(token.head.i + 1)
-                word_features['n_Lefts'].append(token.n_lefts)
-                word_features['n_Rights'].append(token.n_rights)
-                word_features['Distance2Head'].append(abs(token.head.i - token.i))
-                word_features['Head_Direction'].append(get_direction(token.head.i, token.i))
+                word_features["Head_word_idx"].append(token.head.i + 1)
+                word_features["n_Lefts"].append(token.n_lefts)
+                word_features["n_Rights"].append(token.n_rights)
+                word_features["AbsDistance2Head"].append(abs(token.head.i - token.i))
+                word_features["Head_Direction"].append(
+                    get_direction(token.head.i, token.i)
+                )
 
         res.append(word_features)
 
