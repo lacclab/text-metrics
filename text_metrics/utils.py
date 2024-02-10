@@ -11,6 +11,7 @@ import torch
 from torch.nn.functional import log_softmax
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from wordfreq import tokenize, word_frequency
+from spacy.language import Language
 
 CONTENT_WORDS = {
     "PUNCT": False,
@@ -62,7 +63,9 @@ def get_reduced_pos(pos: str) -> str:
     """
     Returns the reduced pos tag of the pos tag.
     """
-    return REDUCED_POS.get(pos, "UNKNOWN")
+    return REDUCED_POS.get(
+        pos, "UNKNOWN"
+    )  # TODO Why should there be UNKNOWN? Why not map to a reduced pos?
 
 
 def get_direction(head_idx: int, word_idx: int) -> str:
@@ -82,7 +85,7 @@ def get_direction(head_idx: int, word_idx: int) -> str:
 
 def get_parsing_features(
     text: str,
-    spacy_model: spacy.Language,
+    spacy_model: Language,
     mode: Literal["keep-first", "keep-all", "re-tokenize"] = "re-tokenize",
 ) -> pd.DataFrame:
     """
@@ -159,8 +162,13 @@ def get_parsing_features(
                 word_features["n_Rights"].append(
                     len([d for d in token.rights if d.i in token_idx2word_idx])
                 )
-                word_features["Distance2Head"].append(
+                word_features["AbsDistance2Head"].append(
                     abs(token_idx2word_idx[ind] - token_idx2word_idx[token.head.i])
+                    if token.head.i in token_idx2word_idx
+                    else -1
+                )
+                word_features["Distance2Head"].append(
+                    token_idx2word_idx[ind] - token_idx2word_idx[token.head.i]
                     if token.head.i in token_idx2word_idx
                     else -1
                 )
@@ -176,6 +184,7 @@ def get_parsing_features(
                 word_features["n_Lefts"].append(token.n_lefts)
                 word_features["n_Rights"].append(token.n_rights)
                 word_features["AbsDistance2Head"].append(abs(token.head.i - token.i))
+                word_features["Distance2Head"].append(token.head.i - token.i)
                 word_features["Head_Direction"].append(
                     get_direction(token.head.i, token.i)
                 )
