@@ -9,9 +9,19 @@ import pkg_resources
 import spacy
 import torch
 from torch.nn.functional import log_softmax
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import (
+    AutoTokenizer,
+    AutoModelForCausalLM,
+    GPTNeoXTokenizerFast,
+    GPTNeoXForCausalLM,
+    MambaForCausalLM,
+)
 from wordfreq import tokenize, word_frequency
 from spacy.language import Language
+import os, sys, torch, transformers
+from typing import List, Union
+
+
 
 CONTENT_WORDS = {
     "PUNCT": False,
@@ -270,8 +280,216 @@ def _join_surp(words: list[str], tok_surps: list[tuple[str, float]]):
     assert len(out) == len(words)
     return out
 
+def init_tok_n_model(
+    model_name: str, device: str = "cpu", pythia_checkpoint: str = "step143000"
+):
+    """This function initializes the tokenizer and model for the specified LLM variant.
 
-def get_surprisal(text: str, tokenizer, model) -> pd.DataFrame:
+    Args:
+        model_name (str): the model name. Supported models:
+            GPT-2 family:
+            "gpt2", "gpt2-medium", "gpt2-large", "gpt2-xl"
+
+            GPT-Neo family:
+            "EleutherAI/gpt-neo-125M", "EleutherAI/gpt-neo-1.3B", "EleutherAI/gpt-neo-2.7B",
+            "EleutherAI/gpt-j-6B", "EleutherAI/gpt-neox-20b"
+
+            OPT family:
+            "facebook/opt-125m", "facebook/opt-350m", "facebook/opt-1.3b", "facebook/opt-2.7b",
+            "facebook/opt-6.7b", "facebook/opt-13b", "facebook/opt-30b", "facebook/opt-66b"
+
+            Pythia family:
+            "EleutherAI/pythia-70m", "EleutherAI/pythia-160m", "EleutherAI/pythia-410m", "EleutherAI/pythia-1b",
+            "EleutherAI/pythia-1.4b", "EleutherAI/pythia-2.8b", "EleutherAI/pythia-6.9b", "EleutherAI/pythia-12b",
+            each with checkpoints specified by training steps:
+            "step1", "step2", "step4", ..., "step142000", "step143000"
+        device (str, optional): Defaults to 'cpu'.
+        pythia_checkpoint (str, optional): The checkpoint for Pythia models. Defaults to 'step143000'.
+
+    Raises:
+        ValueError: Unsupported LLM variant
+
+    Returns:
+        Tuple[Union[AutoTokenizer, GPTNeoXTokenizerFast],
+              Union[AutoModelForCausalLM, GPTNeoXForCausalLM]]: tokenizer, model
+    """
+    model_variant = model_name.split("/")[-1]
+    if "gpt-neox" in model_variant:
+        tokenizer = GPTNeoXTokenizerFast.from_pretrained(model_name)
+    elif "gpt-neo" in model_variant:
+        tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
+    elif "gpt" in model_variant:
+        tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
+    elif "opt" in model_variant:
+        tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
+    elif "pythia" in model_variant:
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_name, revision=pythia_checkpoint, use_fast=True
+        )
+    elif "mamba" in model_variant:
+        tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
+    else:
+        raise ValueError("Unsupported LLM variant")
+
+    if "pythia" in model_variant:
+        model = GPTNeoXForCausalLM.from_pretrained(
+            model_name, revision=pythia_checkpoint
+        )
+    if "mamba" in model_variant:
+        model = MambaForCausalLM.from_pretrained(model_name)
+    else:
+        model = AutoModelForCausalLM.from_pretrained(model_name)
+
+    model = model.to(device)
+
+    return tokenizer, model
+
+
+def surprise(
+    sentence: str,
+    model: Union[AutoModelForCausalLM, GPTNeoXForCausalLM],
+    tokenizer: Union[AutoTokenizer, GPTNeoXTokenizerFast],
+    model_name: str,
+    stride: int = 512,
+):
+    """This function calculates the surprisal of a sentence using a language model.
+    In case the sentence is too long, it is split into chunks while keeping previous context of STRIDE tokens.
+
+    Args:
+        sentence (str): The sentence for which the surprisal is calculated
+        model (Union[AutoModelForCausalLM, GPTNeoXForCausalLM]): The language model from which the surprisal is calculated
+        tokenizer (Union[AutoTokenizer, GPTNeoXTokenizerFast]): The tokenizer for the language model
+        model_name (str): The name of the language model (e.g "gpt2", "gpt-neo-125M", "opt-125m", "pythia-1b")
+        stride (int, optional): The number of tokens to keep as context. Defaults to 512.
+
+    Returns:
+        Tuple[np.ndarray, List[Tuple[int]]]: The surprisal values for each token in the sentence, the offset mapping
+        The offset mapping is a list of tuples, where each tuple contains the start and end character index of the token
+    """
+    model_variant = model_name.split("/")[-1]
+    print(model_variant)
+    with torch.no_grad():
+        all_log_probs = torch.tensor([], device=model.device)
+        offset_mapping = []
+        start_ind = 0
+        try:
+            max_ctx = model.config.max_position_embeddings
+        except:
+            max_ctx = 8192
+        # print(max_ctx)
+        while True:
+            encodings = tokenizer(
+                sentence[start_ind:],
+                max_length=max_ctx - 2,
+                truncation=True,
+                return_offsets_mapping=True,
+            )
+            # for gpt and pythia variants, we need to add bos and eos tokens
+            if "gpt-neox" in model_variant or "opt" in model_variant or 'mamba' in model_variant:
+                tensor_input = torch.tensor(
+                    [encodings["input_ids"] + [tokenizer.eos_token_id]],
+                    device=model.device,
+                )
+            elif "gpt" in model_variant or "pythia" in model_variant:
+                tensor_input = torch.tensor(
+                    [
+                        [tokenizer.bos_token_id]
+                        + encodings["input_ids"]
+                        + [tokenizer.eos_token_id]
+                    ],
+                    device=model.device,
+                )
+
+            output = model(tensor_input, labels=tensor_input)
+            shift_logits = output["logits"][
+                ..., :-1, :
+            ].contiguous()  # remove the last token from the logits
+
+            #  This shift is necessary because the labels are shifted by one position to the right
+            # (because the logits are w.r.t the next token)
+            shift_labels = tensor_input[
+                ..., 1:
+            ].contiguous()  # remove the first token from the labels,
+
+            log_probs = torch.nn.functional.cross_entropy(
+                shift_logits.view(-1, shift_logits.size(-1)),
+                shift_labels.view(-1),
+                reduction="none",
+            )
+
+            # varify that the average of the log_probs is equal to the loss
+            assert torch.isclose(
+                torch.exp(sum(log_probs) / len(log_probs)), torch.exp(output["loss"])
+            )
+
+            # Handle the case where the sentence is too long for the model
+            offset = 0 if start_ind == 0 else stride - 1
+            all_log_probs = torch.cat([all_log_probs, log_probs[offset:-1]])
+            offset_mapping.extend(
+                [
+                    (i + start_ind, j + start_ind)
+                    for i, j in encodings["offset_mapping"][offset:]
+                ]
+            )
+            if encodings["offset_mapping"][-1][1] + start_ind == len(sentence):
+                break
+            start_ind += encodings["offset_mapping"][-stride][1]
+
+    if "gpt-neox" in model_variant or "opt" in model_variant or 'mamba' in model_variant:
+        offset_mapping = offset_mapping[1:]
+
+    return np.asarray(all_log_probs.cpu()), offset_mapping
+
+
+def get_word_mapping(words: List[str]):
+    """Given a list of words, return the offset mapping for each word.
+
+    Args:
+        words (List[str]): The list of words
+
+    Returns:
+        Tuple[str]: The offset mapping for each word
+    """
+    offsets = []
+    pos = 0
+    for w in words:
+        offsets.append((pos, pos + len(w)))
+        pos += len(w) + 1
+    return offsets
+
+
+def string_to_log_probs(string: str, probs: np.ndarray, offsets: list):
+    """Given text and token-level log probabilities, aggregate the log probabilities to word-level log probabilities.
+    Note: Assumes there is no whitespace in the end and the beginning of the string.
+
+    Args:
+        string (str): The input text
+        probs (np.ndarray): Log probabilities for each token
+        offsets (list): The offset mapping for each token
+
+    Returns:
+        Tuple[List[float], List[Tuple[float]]]: The aggregated log probabilities for each word
+    """
+    words = string.split()
+    agg_log_probs = []
+    word_mapping = get_word_mapping(words)
+    cur_prob = 0
+    cur_word_ind = 0
+    for i, (lp, ind) in enumerate(zip(probs, offsets)):
+        cur_prob += lp
+        if ind[1] == word_mapping[cur_word_ind][1]:
+            # this handles the case in which there are multiple tokens for the same word
+            if i < len(probs) - 1 and offsets[i + 1][1] == ind[1]:
+                continue
+            agg_log_probs.append(cur_prob)
+            cur_prob = 0
+            cur_word_ind += 1
+
+    zipped_surp = list(zip(words, agg_log_probs))
+    return agg_log_probs, zipped_surp
+
+def get_surprisal(text: str, tokenizer: Union[AutoTokenizer, GPTNeoXTokenizerFast],
+                  model: Union[AutoModelForCausalLM, GPTNeoXForCausalLM], model_name: str) -> pd.DataFrame:
     """
     Get surprisal values for each word in text.
 
@@ -296,9 +514,9 @@ def get_surprisal(text: str, tokenizer, model) -> pd.DataFrame:
     3    you?   3.704563
     """
 
-    tok_surps = _get_surp(text, tokenizer, model)
-    word_surps = _join_surp(text.split(), tok_surps)  # [:-1])
-    return pd.DataFrame(word_surps, columns=["Word", "Surprisal"])
+    probs, offset_mapping = surprise(text, model, tokenizer, model_name)
+    return pd.DataFrame(string_to_log_probs(text, probs, offset_mapping)[1],
+                        columns=["Word", "Surprisal"])
 
 
 def get_frequency(text: str) -> pd.DataFrame:
@@ -459,7 +677,7 @@ def get_metrics(
     surprisals = []
     for model, tokenizer, model_name in zip(models, tokenizers, model_names):
         surprisal = get_surprisal(
-            text=text_reformatted, tokenizer=tokenizer, model=model
+            text=text_reformatted, tokenizer=tokenizer, model=model, model_name=model_name
         )
         surprisal.rename(columns={"Surprisal": f"{model_name}_Surprisal"}, inplace=True)
         surprisals.append(surprisal)

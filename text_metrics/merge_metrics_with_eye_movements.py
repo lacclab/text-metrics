@@ -4,7 +4,7 @@ import pandas as pd
 import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import spacy
-from text_metrics.utils import get_metrics
+from text_metrics.utils import get_metrics, init_tok_n_model
 
 
 def add_metrics_to_eye_tracking(
@@ -13,6 +13,7 @@ def add_metrics_to_eye_tracking(
     spacy_model_name: str,
     parsing_mode: Literal['keep-first','keep-all','re-tokenize'],
     add_question_in_prompt: bool = False,
+    device: str = "cpu",
 ) -> pd.DataFrame:
     """
     Adds metrics to each row in the eye-tracking report
@@ -52,16 +53,12 @@ def add_metrics_to_eye_tracking(
     )["IA_LABEL"].apply(list)
 
     text_from_et = text_from_et.apply(lambda text: " ".join(text))
-
-    tokenizers = [
-        AutoTokenizer.from_pretrained(model_name)
-        for model_name in surprisal_extraction_model_names
-    ]
-
-    models = [
-        AutoModelForCausalLM.from_pretrained(model_name)
-        for model_name in surprisal_extraction_model_names
-    ]
+    
+    toks_models = [init_tok_n_model(model_name=model_name, device=device) 
+                   for model_name in surprisal_extraction_model_names]
+    
+    tokenizers = [tok_model[0] for tok_model in toks_models]
+    models = [tok_model[1] for tok_model in toks_models]
 
     spacy_model = spacy.load(spacy_model_name)
 
