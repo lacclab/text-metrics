@@ -398,6 +398,8 @@ def surprise(
                     ],
                     device=model.device,
                 )
+            else:
+                raise ValueError("Unsupported LLM variant")
 
             output = model(tensor_input, labels=tensor_input)
             shift_logits = output["logits"][
@@ -487,6 +489,8 @@ def string_to_log_probs(string: str, probs: np.ndarray, offsets: list):
     zipped_surp = list(zip(words, agg_log_probs))
     return agg_log_probs, zipped_surp
 
+# Credits: https://github.com/byungdoh/llm_surprisal/blob/eacl24/get_llm_surprisal.py
+# https://github.com/rycolab/revisiting-uid/blob/0b60df7e8f474d9c7ac938e7d8a02fda6fc8787a/src/language_modeling.py#L136
 def get_surprisal(text: str, tokenizer: Union[AutoTokenizer, GPTNeoXTokenizerFast],
                   model: Union[AutoModelForCausalLM, GPTNeoXForCausalLM], model_name: str) -> pd.DataFrame:
     """

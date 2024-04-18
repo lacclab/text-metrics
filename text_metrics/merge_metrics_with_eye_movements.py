@@ -31,8 +31,6 @@ def add_metrics_to_eye_tracking(
 
     """
 
-    # Extract metrics for all paragraph-level pairs
-    metric_dfs = []
 
     # Remove duplicates
     without_duplicates = eye_tracking_data[
@@ -64,7 +62,8 @@ def add_metrics_to_eye_tracking(
     text_key_cols = ["paragraph_id", "article_title", "level", "has_preview", "question"]
 
     metric_df = None
-    for model, tokenizer in zip(models, tokenizers):
+    for i, (model, tokenizer) in enumerate(zip(models, tokenizers)):
+        metric_dfs = []
         model.to(model_target_device)
         for row in tqdm.tqdm(
             text_from_et.reset_index().itertuples(),
@@ -82,11 +81,14 @@ def add_metrics_to_eye_tracking(
 
 
             # add here new metrics
+            print(surprisal_extraction_model_names[i])
+            print(model)
+            print(tokenizer)
             merged_df = get_metrics(
                 text=text_input,
                 models=[model],
                 tokenizers=[tokenizer],
-                model_names=surprisal_extraction_model_names,
+                model_names=surprisal_extraction_model_names[i],
                 parsing_model=spacy_model,
                 parsing_mode=parsing_mode,
                 add_parsing_features=True if metric_df is None else False,
@@ -116,7 +118,7 @@ def add_metrics_to_eye_tracking(
             metric_df = pd.concat(metric_dfs, axis=0)
         else:
             concatenated_metric_dfs = pd.concat(metric_dfs, axis=0)
-            cols_to_merge = concatenated_metric_dfs.columns.difference(metric_df.columns)
+            cols_to_merge = concatenated_metric_dfs.columns.difference(metric_df.columns).tolist()
             cols_to_merge += text_key_cols + ["IA_ID"]
             
             metric_df = metric_df.merge(
@@ -148,7 +150,8 @@ def add_metrics_to_eye_tracking(
 
 
 if __name__ == "__main__":
-    et_data = pd.read_csv("/Users/shubi/eye-tracking/data/interim/et_data_enriched.csv")
+    et_data = pd.read_csv("/data/home/meiri.yoav/text-metrics/intermediate_eye_tracking_data.csv")
     et_data_enriched = add_metrics_to_eye_tracking(
-        eye_tracking_data=et_data, surprisal_extraction_model_names=["gpt2"]
+        eye_tracking_data=et_data, surprisal_extraction_model_names=["facebook/opt-350m", "facebook/opt-1.3b", "facebook/opt-2.7b"],
+        spacy_model_name="en_core_web_sm", parsing_mode="re-tokenize", add_question_in_prompt=False, model_target_device="cuda:2"
     )
