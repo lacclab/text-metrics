@@ -399,7 +399,7 @@ def surprise(
                     device=model.device,
                 )
             else:
-                raise ValueError("Unsupported LLM variant")
+                raise ValueError(f"Unsupported LLM variant {model_variant}")
 
             output = model(tensor_input, labels=tensor_input)
             shift_logits = output["logits"][

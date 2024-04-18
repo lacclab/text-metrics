@@ -4,7 +4,7 @@ import pandas as pd
 import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import spacy
-from text_metrics.utils import get_metrics, init_tok_n_model
+from utils import get_metrics, init_tok_n_model
 
 
 def add_metrics_to_eye_tracking(
@@ -81,14 +81,11 @@ def add_metrics_to_eye_tracking(
 
 
             # add here new metrics
-            print(surprisal_extraction_model_names[i])
-            print(model)
-            print(tokenizer)
             merged_df = get_metrics(
                 text=text_input,
                 models=[model],
                 tokenizers=[tokenizer],
-                model_names=surprisal_extraction_model_names[i],
+                model_names=[surprisal_extraction_model_names[i]],
                 parsing_model=spacy_model,
                 parsing_mode=parsing_mode,
                 add_parsing_features=True if metric_df is None else False,
