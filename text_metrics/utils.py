@@ -367,7 +367,6 @@ def surprise(
         The offset mapping is a list of tuples, where each tuple contains the start and end character index of the token
     """
     model_variant = model_name.split("/")[-1]
-    print(model_variant)
     with torch.no_grad():
         all_log_probs = torch.tensor([], device=model.device)
         offset_mapping = []
