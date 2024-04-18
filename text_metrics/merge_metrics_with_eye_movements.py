@@ -4,7 +4,7 @@ import pandas as pd
 import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import spacy
-from utils import get_metrics, init_tok_n_model
+from text_metrics.utils import get_metrics, init_tok_n_model
 
 
 def add_metrics_to_eye_tracking(
