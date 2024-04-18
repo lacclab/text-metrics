@@ -13,7 +13,7 @@ def add_metrics_to_eye_tracking(
     spacy_model_name: str,
     parsing_mode: Literal['keep-first','keep-all','re-tokenize'],
     add_question_in_prompt: bool = False,
-    device: str = "cpu",
+    model_target_device: str = "cpu",
 ) -> pd.DataFrame:
     """
     Adds metrics to each row in the eye-tracking report
@@ -54,59 +54,80 @@ def add_metrics_to_eye_tracking(
 
     text_from_et = text_from_et.apply(lambda text: " ".join(text))
     
-    toks_models = [init_tok_n_model(model_name=model_name, device=device) 
+    toks_models = [init_tok_n_model(model_name=model_name, device='cpu') 
                    for model_name in surprisal_extraction_model_names]
     
     tokenizers = [tok_model[0] for tok_model in toks_models]
     models = [tok_model[1] for tok_model in toks_models]
 
     spacy_model = spacy.load(spacy_model_name)
+    text_key_cols = ["paragraph_id", "article_title", "level", "has_preview", "question"]
+
+    metric_df = None
+    for model, tokenizer in zip(models, tokenizers):
+        model.to(model_target_device)
+        for row in tqdm.tqdm(
+            text_from_et.reset_index().itertuples(),
+            total=len(text_from_et),
+            desc="Extracting metrics",
+        ):
+            actually_add_question_in_prompt = (
+                add_question_in_prompt and row.has_preview == "Hunting"
+            )
+            if actually_add_question_in_prompt:
+                text_input = row.question + " " + row.IA_LABEL
+                num_question_words = len(row.question.split())
+            else:
+                text_input = row.IA_LABEL
 
 
-    for row in tqdm.tqdm(
-        text_from_et.reset_index().itertuples(),
-        total=len(text_from_et),
-        desc="Extracting metrics",
-    ):
-        actually_add_question_in_prompt = (
-            add_question_in_prompt and row.has_preview == "Hunting"
-        )
-        if actually_add_question_in_prompt:
-            text_input = row.question + " " + row.IA_LABEL
-            num_question_words = len(row.question.split())
+            # add here new metrics
+            merged_df = get_metrics(
+                text=text_input,
+                models=[model],
+                tokenizers=[tokenizer],
+                model_names=surprisal_extraction_model_names,
+                parsing_model=spacy_model,
+                parsing_mode=parsing_mode,
+                add_parsing_features=True if metric_df is None else False,
+            )
+
+            # Remove the question from the output
+            if actually_add_question_in_prompt:
+                merged_df = merged_df[num_question_words:]
+
+            merged_df[
+                ["paragraph_id", "article_title", "level", "has_preview", "question"]
+            ] = (
+                row.paragraph_id,
+                row.article_title,
+                row.level,
+                row.has_preview,
+                row.question,
+            )
+            merged_df.reset_index(inplace=True)
+            merged_df = merged_df.rename({"index": "IA_ID", "Word": "IA_LABEL"}, axis=1)
+            if actually_add_question_in_prompt:
+                merged_df["IA_ID"] -= num_question_words
+        
+            metric_dfs.append(merged_df)
+        
+        if metric_df is None:
+            metric_df = pd.concat(metric_dfs, axis=0)
         else:
-            text_input = row.IA_LABEL
-
-
-        # add here new metrics
-        merged_df = get_metrics(
-            text=text_input,
-            models=models,
-            tokenizers=tokenizers,
-            model_names=surprisal_extraction_model_names,
-            parsing_model=spacy_model,
-            parsing_mode=parsing_mode,
-        )
-
-        # Remove the question from the output
-        if actually_add_question_in_prompt:
-            merged_df = merged_df[num_question_words:]
-
-        merged_df[
-            ["paragraph_id", "article_title", "level", "has_preview", "question"]
-        ] = (
-            row.paragraph_id,
-            row.article_title,
-            row.level,
-            row.has_preview,
-            row.question,
-        )
-        merged_df.reset_index(inplace=True)
-        merged_df = merged_df.rename({"index": "IA_ID", "Word": "IA_LABEL"}, axis=1)
-        if actually_add_question_in_prompt:
-            merged_df["IA_ID"] -= num_question_words
-        metric_dfs.append(merged_df)
-    metric_df = pd.concat(metric_dfs, axis=0)
+            concatenated_metric_dfs = pd.concat(metric_dfs, axis=0)
+            cols_to_merge = concatenated_metric_dfs.columns.difference(metric_df.columns)
+            cols_to_merge += text_key_cols + ["IA_ID"]
+            
+            metric_df = metric_df.merge(
+                concatenated_metric_dfs[cols_to_merge],
+                how="left",
+                on=text_key_cols + ["IA_ID"],
+                validate="one_to_one",
+            )
+        
+        # move the model back to the cpu
+        model.to('cpu')
 
     # Join metrics with eye_tracking_data
     et_data_enriched = eye_tracking_data.merge(

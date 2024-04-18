@@ -649,6 +649,7 @@ def get_metrics(
     model_names: List[str],
     parsing_model: spacy.Language,
     parsing_mode: Literal["keep-first", "keep-all", "re-tokenize"],
+    add_parsing_features: bool = True,
 ) -> pd.DataFrame:
     """
     Wrapper function to get the surprisal and frequency values and length of each word in the text.
@@ -688,10 +689,11 @@ def get_metrics(
     for surprisal in surprisals:
         merged_df = merged_df.join(surprisal.drop("Word", axis=1))
 
-    parsing_features = get_parsing_features(
-        text_reformatted, parsing_model, parsing_mode
-    )
-    merged_df = merged_df.join(parsing_features)
+    if add_parsing_features:
+        parsing_features = get_parsing_features(
+            text_reformatted, parsing_model, parsing_mode
+        )
+        merged_df = merged_df.join(parsing_features)
 
     return merged_df
 
