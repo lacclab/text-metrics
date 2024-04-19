@@ -16,6 +16,7 @@ def add_metrics_to_eye_tracking(
     parsing_mode: Literal['keep-first','keep-all','re-tokenize'],
     add_question_in_prompt: bool = False,
     model_target_device: str = "cpu",
+    hf_access_token: str = None,
 ) -> pd.DataFrame:
     """
     Adds metrics to each row in the eye-tracking report
@@ -63,7 +64,7 @@ def add_metrics_to_eye_tracking(
         if i == 0: print(f"Extracting Frequency, Length")
         print(f"Extracting surprisal using model: {model_name}")
         
-        tokenizer, model = init_tok_n_model(model_name=model_name, device='cpu')
+        tokenizer, model = init_tok_n_model(model_name=model_name, device='cpu', hf_access_token=hf_access_token)
         metric_dfs = []
         model.to(model_target_device)
         for row in tqdm.tqdm(
@@ -153,6 +154,9 @@ def add_metrics_to_eye_tracking(
 if __name__ == "__main__":
     et_data = pd.read_csv("/data/home/meiri.yoav/text-metrics/intermediate_eye_tracking_data.csv")
     et_data_enriched = add_metrics_to_eye_tracking(
-        eye_tracking_data=et_data, surprisal_extraction_model_names=["facebook/opt-1.3b", "facebook/opt-350m", "facebook/opt-2.7b"],
-        spacy_model_name="en_core_web_sm", parsing_mode="re-tokenize", add_question_in_prompt=False, model_target_device="cuda:1"
+        eye_tracking_data=et_data, surprisal_extraction_model_names=["meta-llama/Llama-2-7b-hf"],
+        spacy_model_name="en_core_web_sm", parsing_mode="re-tokenize", add_question_in_prompt=False, model_target_device="cuda:1",
+        hf_access_token="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"
     )
+    # Save the enriched data
+    et_data_enriched.to_csv("/data/home/meiri.yoav/text-metrics/enriched_eye_tracking_data_Llama_surp.csv", index=False)

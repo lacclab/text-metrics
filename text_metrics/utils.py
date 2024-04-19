@@ -282,7 +282,8 @@ def _join_surp(words: list[str], tok_surps: list[tuple[str, float]]):
     return out
 
 def init_tok_n_model(
-    model_name: str, device: str = "cpu", pythia_checkpoint: str = "step143000"
+    model_name: str, device: str = "cpu", pythia_checkpoint: str = "step143000",
+    hf_access_token: str = None,
 ):
     """This function initializes the tokenizer and model for the specified LLM variant.
 
@@ -317,8 +318,11 @@ def init_tok_n_model(
     model_variant = model_name.split("/")[-1]
     if "gpt-neox" in model_variant:
         tokenizer = GPTNeoXTokenizerFast.from_pretrained(model_name)
-    elif "gpt-neo" in model_variant or "gpt" in model_variant or "opt" in model_variant or "Llama" in model_variant:
+    elif "gpt-neo" in model_variant or "gpt" in model_variant or "opt" in model_variant:
         tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
+    elif "Llama" in model_variant:
+        assert hf_access_token is not None, f"Please provide the HuggingFace access token to load {model_name}"
+        tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True, token=hf_access_token)
     elif "pythia" in model_variant:
         tokenizer = AutoTokenizer.from_pretrained(
             model_name, revision=pythia_checkpoint, use_fast=True
@@ -335,7 +339,7 @@ def init_tok_n_model(
     elif "mamba" in model_variant:
         model = MambaForCausalLM.from_pretrained(model_name)
     elif "Llama" in model_variant:
-        model = LlamaForCausalLM.from_pretrained(model_name)
+        model = LlamaForCausalLM.from_pretrained(model_name, token=hf_access_token)
     else:
         model = AutoModelForCausalLM.from_pretrained(model_name)
 
@@ -383,7 +387,7 @@ def surprise(
                 return_offsets_mapping=True,
             )
             # for gpt and pythia variants, we need to add bos and eos tokens
-            if "gpt-neox" in model_variant or "opt" in model_variant or 'mamba' in model_variant:
+            if "gpt-neox" in model_variant or "opt" in model_variant or 'mamba' in model_variant or "Llama" in model_variant:
                 tensor_input = torch.tensor(
                     [encodings["input_ids"] + [tokenizer.eos_token_id]],
                     device=model.device,
@@ -435,7 +439,7 @@ def surprise(
                 break
             start_ind += encodings["offset_mapping"][-stride][1]
 
-    if "gpt-neox" in model_variant or "opt" in model_variant or 'mamba' in model_variant:
+    if "gpt-neox" in model_variant or "opt" in model_variant or 'mamba' in model_variant or "Llama" in model_variant:
         offset_mapping = offset_mapping[1:]
 
     return np.asarray(all_log_probs.cpu()), offset_mapping
@@ -662,7 +666,9 @@ def get_metrics(
     :param tokenizer: how to tokenize the text. Should match the model input expectations.
     :param parsing_model: the spacy model to use for parsing the text.
     :param parsing_mode: type of parsing to use. one of ['keep-first','keep-all','re-tokenize']
+    :param add_parsing_features: whether to add parsing features to the output.
     :return: pd.DataFrame, each row represents a word, its surprisal and frequency.
+    
 
     >>> tokenizer = AutoTokenizer.from_pretrained('gpt2')
     >>> model = AutoModelForCausalLM.from_pretrained('gpt2')
