@@ -51,18 +51,17 @@ def add_metrics_to_eye_tracking(
     )["IA_LABEL"].apply(list)
 
     text_from_et = text_from_et.apply(lambda text: " ".join(text))
-    
-    toks_models = [init_tok_n_model(model_name=model_name, device='cpu') 
-                   for model_name in surprisal_extraction_model_names]
-    
-    tokenizers = [tok_model[0] for tok_model in toks_models]
-    models = [tok_model[1] for tok_model in toks_models]
 
     spacy_model = spacy.load(spacy_model_name)
     text_key_cols = ["paragraph_id", "article_title", "level", "has_preview", "question"]
 
     metric_df = None
-    for i, (model, tokenizer) in enumerate(zip(models, tokenizers)):
+    for i, model_name in enumerate(surprisal_extraction_model_names):
+        # log the model name
+        if i == 0: print(f"Extracting Frequency, Length")
+        print(f"Extracting surprisal using model: {model_name}")
+        
+        tokenizer, model = init_tok_n_model(model_name=model_name, device='cpu')
         metric_dfs = []
         model.to(model_target_device)
         for row in tqdm.tqdm(
@@ -127,6 +126,7 @@ def add_metrics_to_eye_tracking(
         
         # move the model back to the cpu
         model.to('cpu')
+        del model
 
     # Join metrics with eye_tracking_data
     et_data_enriched = eye_tracking_data.merge(
