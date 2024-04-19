@@ -15,6 +15,7 @@ from transformers import (
     GPTNeoXTokenizerFast,
     GPTNeoXForCausalLM,
     MambaForCausalLM,
+    LlamaForCausalLM,
 )
 from wordfreq import tokenize, word_frequency
 from spacy.language import Language
@@ -316,11 +317,7 @@ def init_tok_n_model(
     model_variant = model_name.split("/")[-1]
     if "gpt-neox" in model_variant:
         tokenizer = GPTNeoXTokenizerFast.from_pretrained(model_name)
-    elif "gpt-neo" in model_variant:
-        tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
-    elif "gpt" in model_variant:
-        tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
-    elif "opt" in model_variant:
+    elif "gpt-neo" in model_variant or "gpt" in model_variant or "opt" in model_variant or "Llama" in model_variant:
         tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
     elif "pythia" in model_variant:
         tokenizer = AutoTokenizer.from_pretrained(
@@ -335,8 +332,10 @@ def init_tok_n_model(
         model = GPTNeoXForCausalLM.from_pretrained(
             model_name, revision=pythia_checkpoint
         )
-    if "mamba" in model_variant:
+    elif "mamba" in model_variant:
         model = MambaForCausalLM.from_pretrained(model_name)
+    elif "Llama" in model_variant:
+        model = LlamaForCausalLM.from_pretrained(model_name)
     else:
         model = AutoModelForCausalLM.from_pretrained(model_name)
 
