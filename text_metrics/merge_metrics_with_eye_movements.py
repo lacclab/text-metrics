@@ -4,6 +4,8 @@ import pandas as pd
 import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import spacy
+import torch
+import gc
 from text_metrics.utils import get_metrics, init_tok_n_model
 
 
@@ -127,6 +129,8 @@ def add_metrics_to_eye_tracking(
         # move the model back to the cpu
         model.to('cpu')
         del model
+        gc.collect()
+        torch.cuda.empty_cache()
 
     # Join metrics with eye_tracking_data
     et_data_enriched = eye_tracking_data.merge(
@@ -149,6 +153,6 @@ def add_metrics_to_eye_tracking(
 if __name__ == "__main__":
     et_data = pd.read_csv("/data/home/meiri.yoav/text-metrics/intermediate_eye_tracking_data.csv")
     et_data_enriched = add_metrics_to_eye_tracking(
-        eye_tracking_data=et_data, surprisal_extraction_model_names=["facebook/opt-350m", "facebook/opt-1.3b", "facebook/opt-2.7b"],
-        spacy_model_name="en_core_web_sm", parsing_mode="re-tokenize", add_question_in_prompt=False, model_target_device="cuda:2"
+        eye_tracking_data=et_data, surprisal_extraction_model_names=["facebook/opt-1.3b", "facebook/opt-350m", "facebook/opt-2.7b"],
+        spacy_model_name="en_core_web_sm", parsing_mode="re-tokenize", add_question_in_prompt=False, model_target_device="cuda:1"
     )
