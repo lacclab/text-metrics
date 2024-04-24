@@ -206,11 +206,11 @@ def get_parsing_features(
     if mode == "keep-all":
         pass
     elif mode == "keep-first":
-        final_res = final_res.map(
+        final_res = final_res.apply(
             lambda x: x[0] if isinstance(x, list) and len(x) > 0 else x
         )
     elif mode == "re-tokenize":
-        final_res = final_res.map(
+        final_res = final_res.apply(
             lambda x: x[0] if isinstance(x, list) and len(x) > 0 else x
         )
 
@@ -495,7 +495,8 @@ def string_to_log_probs(string: str, probs: np.ndarray, offsets: list):
 # Credits: https://github.com/byungdoh/llm_surprisal/blob/eacl24/get_llm_surprisal.py
 # https://github.com/rycolab/revisiting-uid/blob/0b60df7e8f474d9c7ac938e7d8a02fda6fc8787a/src/language_modeling.py#L136
 def get_surprisal(text: str, tokenizer: Union[AutoTokenizer, GPTNeoXTokenizerFast],
-                  model: Union[AutoModelForCausalLM, GPTNeoXForCausalLM], model_name: str) -> pd.DataFrame:
+                  model: Union[AutoModelForCausalLM, GPTNeoXForCausalLM],
+                  model_name: str) -> pd.DataFrame:
     """
     Get surprisal values for each word in text.
 
