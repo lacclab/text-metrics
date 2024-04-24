@@ -1,4 +1,5 @@
 """ This module contains the functions for extracting the metrics from the text. """
+
 import string
 from collections import defaultdict
 from typing import List, Literal
@@ -21,7 +22,6 @@ from wordfreq import tokenize, word_frequency
 from spacy.language import Language
 import os, sys, torch, transformers
 from typing import List, Union
-
 
 
 CONTENT_WORDS = {
@@ -281,8 +281,11 @@ def _join_surp(words: list[str], tok_surps: list[tuple[str, float]]):
     assert len(out) == len(words)
     return out
 
+
 def init_tok_n_model(
-    model_name: str, device: str = "cpu", pythia_checkpoint: str = "step143000",
+    model_name: str,
+    device: str = "cpu",
+    pythia_checkpoint: str = "step143000",
     hf_access_token: str = None,
 ):
     """This function initializes the tokenizer and model for the specified LLM variant.
@@ -321,8 +324,12 @@ def init_tok_n_model(
     elif "gpt-neo" in model_variant or "gpt" in model_variant or "opt" in model_variant:
         tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
     elif "Llama" in model_variant:
-        assert hf_access_token is not None, f"Please provide the HuggingFace access token to load {model_name}"
-        tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True, token=hf_access_token)
+        assert (
+            hf_access_token is not None
+        ), f"Please provide the HuggingFace access token to load {model_name}"
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_name, use_fast=True, token=hf_access_token
+        )
     elif "pythia" in model_variant:
         tokenizer = AutoTokenizer.from_pretrained(
             model_name, revision=pythia_checkpoint, use_fast=True
@@ -387,7 +394,12 @@ def surprise(
                 return_offsets_mapping=True,
             )
             # for gpt and pythia variants, we need to add bos and eos tokens
-            if "gpt-neox" in model_variant or "opt" in model_variant or 'mamba' in model_variant or "Llama" in model_variant:
+            if (
+                "gpt-neox" in model_variant
+                or "opt" in model_variant
+                or "mamba" in model_variant
+                or "Llama" in model_variant
+            ):
                 tensor_input = torch.tensor(
                     [encodings["input_ids"] + [tokenizer.eos_token_id]],
                     device=model.device,
@@ -439,7 +451,12 @@ def surprise(
                 break
             start_ind += encodings["offset_mapping"][-stride][1]
 
-    if "gpt-neox" in model_variant or "opt" in model_variant or 'mamba' in model_variant or "Llama" in model_variant:
+    if (
+        "gpt-neox" in model_variant
+        or "opt" in model_variant
+        or "mamba" in model_variant
+        or "Llama" in model_variant
+    ):
         offset_mapping = offset_mapping[1:]
 
     return np.asarray(all_log_probs.cpu()), offset_mapping
@@ -492,11 +509,15 @@ def string_to_log_probs(string: str, probs: np.ndarray, offsets: list):
     zipped_surp = list(zip(words, agg_log_probs))
     return agg_log_probs, zipped_surp
 
+
 # Credits: https://github.com/byungdoh/llm_surprisal/blob/eacl24/get_llm_surprisal.py
 # https://github.com/rycolab/revisiting-uid/blob/0b60df7e8f474d9c7ac938e7d8a02fda6fc8787a/src/language_modeling.py#L136
-def get_surprisal(text: str, tokenizer: Union[AutoTokenizer, GPTNeoXTokenizerFast],
-                  model: Union[AutoModelForCausalLM, GPTNeoXForCausalLM],
-                  model_name: str) -> pd.DataFrame:
+def get_surprisal(
+    text: str,
+    tokenizer: Union[AutoTokenizer, GPTNeoXTokenizerFast],
+    model: Union[AutoModelForCausalLM, GPTNeoXForCausalLM],
+    model_name: str,
+) -> pd.DataFrame:
     """
     Get surprisal values for each word in text.
 
@@ -522,8 +543,10 @@ def get_surprisal(text: str, tokenizer: Union[AutoTokenizer, GPTNeoXTokenizerFas
     """
 
     probs, offset_mapping = surprise(text, model, tokenizer, model_name)
-    return pd.DataFrame(string_to_log_probs(text, probs, offset_mapping)[1],
-                        columns=["Word", "Surprisal"])
+    return pd.DataFrame(
+        string_to_log_probs(text, probs, offset_mapping)[1],
+        columns=["Word", "Surprisal"],
+    )
 
 
 def get_frequency(text: str) -> pd.DataFrame:
@@ -655,8 +678,10 @@ def get_metrics(
     models: List[AutoModelForCausalLM],
     tokenizers: List[AutoTokenizer],
     model_names: List[str],
-    parsing_model: spacy.Language,
-    parsing_mode: Literal["keep-first", "keep-all", "re-tokenize"],
+    parsing_model: spacy.Language | None,
+    parsing_mode: (
+        Literal["keep-first", "keep-all", "re-tokenize"] | None
+    ) = "re-tokenize",
     add_parsing_features: bool = True,
 ) -> pd.DataFrame:
     """
@@ -669,7 +694,7 @@ def get_metrics(
     :param parsing_mode: type of parsing to use. one of ['keep-first','keep-all','re-tokenize']
     :param add_parsing_features: whether to add parsing features to the output.
     :return: pd.DataFrame, each row represents a word, its surprisal and frequency.
-    
+
 
     >>> tokenizer = AutoTokenizer.from_pretrained('gpt2')
     >>> model = AutoModelForCausalLM.from_pretrained('gpt2')
@@ -687,7 +712,10 @@ def get_metrics(
     surprisals = []
     for model, tokenizer, model_name in zip(models, tokenizers, model_names):
         surprisal = get_surprisal(
-            text=text_reformatted, tokenizer=tokenizer, model=model, model_name=model_name
+            text=text_reformatted,
+            tokenizer=tokenizer,
+            model=model,
+            model_name=model_name,
         )
         surprisal.rename(columns={"Surprisal": f"{model_name}_Surprisal"}, inplace=True)
         surprisals.append(surprisal)
@@ -700,6 +728,13 @@ def get_metrics(
         merged_df = merged_df.join(surprisal.drop("Word", axis=1))
 
     if add_parsing_features:
+        assert (
+            parsing_model is not None
+        ), "Please provide a parsing model to extract parsing features."
+        assert (
+            parsing_mode is not None
+        ), "Please provide a parsing mode to extract parsing features."
+
         parsing_features = get_parsing_features(
             text_reformatted, parsing_model, parsing_mode
         )
