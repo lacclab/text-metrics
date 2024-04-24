@@ -10,8 +10,9 @@ from transformers import (
     GPTNeoXForCausalLM,
 )
 import spacy
+from spacy.language import Language
 import torch
-from text_metrics.utils import get_metrics, init_tok_n_model
+from utils import get_metrics, init_tok_n_model
 
 
 def create_text_input(
@@ -250,6 +251,104 @@ def extract_metrics_for_text_df(
     return pd.concat(metric_dfs, axis=0)
 
 
+def extract_metrics_for_text_df_multiple_hf_models(
+    text_df: pd.DataFrame,
+    text_col_name: str,
+    text_key_cols: List[str],
+    surprisal_extraction_model_names: List[str],
+    add_parsing_features: bool = True,
+    parsing_mode: Literal["keep-first", "keep-all", "re-tokenize"] | None = "re-tokenize",
+    spacy_model: Language | None = spacy.load("en_core_web_sm"),
+    model_target_device: str = "cpu",
+    hf_access_token: str = None,
+    extract_metrics_for_text_df_kwargs: dict | None = None,
+) -> pd.DataFrame:
+    """This function extracts word level characteristics while extracting surprisal
+        estimates from multiple huggingface models
+
+    Args:
+        text_df (pd.DataFrame): A dataframe where each row has text identifying columns,
+            main text column (string) and possibly prefix and suffix columns (strings)
+        text_col_name (str): The name of the column in text_df that contains the main text
+        text_key_cols (List[str]): The columns in text_df that identify the text
+        surprisal_extraction_model_names (List[str]): The name of the models to extract surprisal
+            values from
+        add_parsing_features (bool, optional): If True, parsing features will be added to the
+            extracted metrics. Defaults to True.
+        parsing_mode (Literal[&quot;keep): Type of parsing to use. one of
+            ['keep-first','keep-all','re-tokenize']. Defaults to "re-tokenize".
+        spacy_model (Language): The spacy model to use for parsing the text.
+            Defaults to spacy.load("en_core_web_sm").
+        model_target_device (str, optional): The device to move the model to. Defaults to "cpu".
+        hf_access_token (str, optional): A huggingface access token. Defaults to None.
+        extract_metrics_for_text_df_kwargs (dict | None, optional): A dict of additional keyword
+            arguments for the extract_metrics_for_text_df function. Defaults to None.
+
+    Returns:
+        pd.DataFrame: A dataframe with the extracted metrics, now instead of each row being a
+            whole text, each row is a word in the text. The columns are the main text
+            identifier, word_index, word and extracted metrics.
+    """
+    assert not (
+        add_parsing_features is True and (parsing_mode is None or spacy_model is None)
+    ), "If add_parsing_features is True, both parsing_mode and spacy_model must be provided"
+    
+    if extract_metrics_for_text_df_kwargs is None:
+        extract_metrics_for_text_df_kwargs = {}
+
+    metric_df = None
+    for i, model_name in enumerate(surprisal_extraction_model_names):
+        # log the model name
+        if i == 0:
+            print("Extracting Frequency, Length")
+        print(f"Extracting surprisal using model: {model_name}")
+
+        tokenizer, model = init_tok_n_model(
+            model_name=model_name, device="cpu", hf_access_token=hf_access_token
+        )
+        model.to(model_target_device)
+
+        metric_dfs = extract_metrics_for_text_df(
+            text_df=text_df,
+            text_col_name=text_col_name,  # this is after turning all the words into a single string
+            text_key_cols=text_key_cols,
+            model=model,
+            model_name=surprisal_extraction_model_names[i],
+            tokenizer=tokenizer,
+            get_metrics_kwargs={
+                "parsing_model": spacy_model,
+                "parsing_mode": parsing_mode,
+                "add_parsing_features": (
+                    True if metric_df is None and add_parsing_features else False
+                ),
+            },
+            **extract_metrics_for_text_df_kwargs,
+        )
+
+        if metric_df is None:
+            metric_df = metric_dfs.copy()
+        else:
+            concatenated_metric_dfs = metric_dfs.copy()
+            cols_to_merge = concatenated_metric_dfs.columns.difference(
+                metric_df.columns
+            ).tolist()
+            cols_to_merge += text_key_cols + ["index"]
+
+            metric_df = metric_df.merge(
+                concatenated_metric_dfs[cols_to_merge],
+                how="left",
+                on=text_key_cols + ["index"],
+                validate="one_to_one",
+            )
+        # move the model back to the cpu
+        model.to("cpu")
+        del model
+        gc.collect()
+        torch.cuda.empty_cache()
+
+    return metric_df
+
+
 def add_metrics_to_eye_tracking(
     eye_tracking_data: pd.DataFrame,
     surprisal_extraction_model_names: List[str],
@@ -259,20 +358,23 @@ def add_metrics_to_eye_tracking(
     model_target_device: str = "cpu",
     hf_access_token: str = None,
 ) -> pd.DataFrame:
-    """
-    Adds metrics to each row in the eye-tracking report
+    """This function adds metrics to the eye_tracking_data dataframe
 
-    :param eye_tracking_data: The eye-tracking report, each row represents
-     a word that was read in a given trial.
-     Should have columns - ['article_title', 'paragraph_id', 'level', 'IA_ID']
-    :param surprisal_extraction_model_names: the name of
-        model/tokenizer to extract surprisal values from.
-    :param spacy_model_name: the name of the spacy model to use for parsing the text.
-    :param parsing_mode: type of parsing to use. one of
-        ['keep-first','keep-all','re-tokenize']
-    :param add_question_in_prompt: whether to add the question in the prompt
-        for the surprisal extraction model (applies for Hunting only).
-    :return: eye-tracking report with surprisal, frequency and word length columns
+    Args:
+        eye_tracking_data (pd.DataFrame): A dataframe with eye tracking data
+        surprisal_extraction_model_names (List[str]): The name of the models to extract surprisal
+            values from (huggingface models)
+        spacy_model_name (str): The name of the spacy model to use for parsing the text
+        parsing_mode (Literal[&quot;keep): Type of parsing to use. one of
+            ['keep-first','keep-all','re-tokenize']
+        add_question_in_prompt (bool, optional): If True, the question will be added to the prompt
+            for surprisal extraction, but the question itself will not be included in the metrics.
+            (no eye tracking data for the question). Defaults to False.
+        model_target_device (str, optional): The device to move the model to. Defaults to "cpu".
+        hf_access_token (str, optional): A huggingface access token. Defaults to None.
+
+    Returns:
+        pd.DataFrame: The eye_tracking_data dataframe with the added word-level metrics
     """
 
     # Remove duplicates
@@ -304,58 +406,23 @@ def add_metrics_to_eye_tracking(
         "question",
     ]
 
-    metric_df = None
-    for i, model_name in enumerate(surprisal_extraction_model_names):
-        # log the model name
-        if i == 0:
-            print("Extracting Frequency, Length")
-        print(f"Extracting surprisal using model: {model_name}")
-
-        tokenizer, model = init_tok_n_model(
-            model_name=model_name, device="cpu", hf_access_token=hf_access_token
-        )
-        model.to(model_target_device)
-
-        metric_dfs = extract_metrics_for_text_df(
-            text_df=text_from_et,
-            text_col_name="IA_LABEL",  # this is after turning all the words into a single string
-            text_key_cols=text_key_cols,
-            model=model,
-            model_name=surprisal_extraction_model_names[i],
-            tokenizer=tokenizer,
-            ordered_prefix_col_names=(
-                ["IA_LABEL", "question"] if add_question_in_prompt else []
-            ),
+    metric_df = extract_metrics_for_text_df_multiple_hf_models(
+        text_df=text_from_et,
+        text_col_name="IA_LABEL",
+        text_key_cols=text_key_cols,
+        surprisal_extraction_model_names=surprisal_extraction_model_names,
+        parsing_mode=parsing_mode,
+        spacy_model=spacy_model,
+        model_target_device=model_target_device,
+        hf_access_token=hf_access_token,
+        extract_metrics_for_text_df_kwargs=dict(
+            ordered_prefix_col_names=["question"] if add_question_in_prompt else [],
             keep_prefix_metrics=False,
             rebase_index_in_main_text=True,
-            get_metrics_kwargs={
-                "parsing_model": spacy_model,
-                "parsing_mode": parsing_mode,
-                "add_parsing_features": True if metric_df is None else False,
-            },
-        )
-        metric_dfs = metric_dfs.rename({"index": "IA_ID", "Word": "IA_LABEL"}, axis=1)
+        ),
+    )
 
-        if metric_df is None:
-            metric_df = metric_dfs.copy()
-        else:
-            concatenated_metric_dfs = metric_dfs.copy()
-            cols_to_merge = concatenated_metric_dfs.columns.difference(
-                metric_df.columns
-            ).tolist()
-            cols_to_merge += text_key_cols + ["IA_ID"]
-
-            metric_df = metric_df.merge(
-                concatenated_metric_dfs[cols_to_merge],
-                how="left",
-                on=text_key_cols + ["IA_ID"],
-                validate="one_to_one",
-            )
-        # move the model back to the cpu
-        model.to("cpu")
-        del model
-        gc.collect()
-        torch.cuda.empty_cache()
+    metric_df = metric_df.rename({"index": "IA_ID", "Word": "IA_LABEL"}, axis=1)
 
     # Join metrics with eye_tracking_data
     et_data_enriched = eye_tracking_data.merge(
