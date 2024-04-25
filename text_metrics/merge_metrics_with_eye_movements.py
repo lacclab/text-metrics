@@ -140,15 +140,24 @@ def filter_prefix_suffix_metrics(
                 [isinstance(col, str) for col in cols_to_keep]
             )
             cols_to_remove = [col for col in full_col_names if col not in cols_to_keep]
-        for col_to_remove in cols_to_remove:
-            merged_df = merged_df.drop(
-                merged_df.index[
-                    range(
-                        word_indices_ranges[col_to_remove][0],
-                        word_indices_ranges[col_to_remove][1] + 1,
-                    )
-                ]
-            )
+            
+        
+        merged_df = merged_df.drop(
+            merged_df.index[
+                sum(
+                    [
+                        list(
+                            range(
+                                word_indices_ranges[col_to_remove][0],
+                                word_indices_ranges[col_to_remove][1] + 1,
+                            )
+                        )
+                        for col_to_remove in cols_to_remove
+                    ],
+                    [],
+                )
+            ]
+        )
     return merged_df
 
 
