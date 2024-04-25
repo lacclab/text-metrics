@@ -214,7 +214,7 @@ def extract_metrics_for_text_df(
         total=len(text_df),
         desc="Extracting metrics",
     ):
-        if len(ordered_prefix_col_names) > 0 and len(ordered_suffix_col_names) > 0:
+        if len(ordered_prefix_col_names) > 0 or len(ordered_suffix_col_names) > 0:
             (
                 text_input,
                 main_text_word_indices,
@@ -239,7 +239,7 @@ def extract_metrics_for_text_df(
 
         # in merged df, remove the prefixes and suffixes that are
         # not in the keep_prefix_metrics and keep_suffix_metrics
-        if len(ordered_prefix_col_names) > 0 and len(ordered_suffix_col_names) > 0:
+        if len(ordered_prefix_col_names) > 0 or len(ordered_suffix_col_names) > 0:
             merged_df = filter_prefix_suffix_metrics(
                 merged_df,
                 ordered_prefix_col_names,
@@ -430,7 +430,7 @@ def add_metrics_to_eye_tracking(
         hunting_metric_df = extract_metrics_partial(
             text_df=text_from_et[text_from_et.index.get_level_values('has_preview') == 'Hunting'],
             extract_metrics_for_text_df_kwargs=dict(
-                ordered_prefix_col_names=["question"] if add_question_in_prompt else [],
+                ordered_prefix_col_names=["question"],
                 keep_prefix_metrics=False,
                 rebase_index_in_main_text=True,
             ),
