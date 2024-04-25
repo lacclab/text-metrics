@@ -1,5 +1,6 @@
 from pathlib import Path
 import gc
+from functools import partial
 from typing import Union, Tuple, Dict, List, Literal
 import pandas as pd
 import tqdm
@@ -12,7 +13,7 @@ from transformers import (
 import spacy
 from spacy.language import Language
 import torch
-from text_metrics.utils import get_metrics, init_tok_n_model
+from utils import get_metrics, init_tok_n_model
 
 
 def create_text_input(
@@ -415,8 +416,7 @@ def add_metrics_to_eye_tracking(
         "question",
     ]
 
-    metric_df = extract_metrics_for_text_df_multiple_hf_models(
-        text_df=text_from_et,
+    extract_metrics_partial = partial(extract_metrics_for_text_df_multiple_hf_models,
         text_col_name="IA_LABEL",
         text_key_cols=text_key_cols,
         surprisal_extraction_model_names=surprisal_extraction_model_names,
@@ -424,12 +424,37 @@ def add_metrics_to_eye_tracking(
         spacy_model=spacy_model,
         model_target_device=model_target_device,
         hf_access_token=hf_access_token,
+    )
+    
+    hunting_metric_df = extract_metrics_partial(
+        # text_df is text_from_et where the index has_preview has value of 'Hunting'
+        text_df=text_from_et[text_from_et.index.get_level_values('has_preview') == 'Hunting'],
         extract_metrics_for_text_df_kwargs=dict(
             ordered_prefix_col_names=["question"] if add_question_in_prompt else [],
             keep_prefix_metrics=False,
             rebase_index_in_main_text=True,
         ),
     )
+    
+    hunting_metric_df_no_question = extract_metrics_partial(
+        text_df=text_from_et[text_from_et.index.get_level_values('has_preview') == 'Hunting'],
+        extract_metrics_for_text_df_kwargs=dict(
+            ordered_prefix_col_names=[],
+            keep_prefix_metrics=False,
+            rebase_index_in_main_text=True,
+        ),
+    )
+    
+    gathering_metric_df = extract_metrics_partial(
+        text_df=text_from_et[text_from_et.index.get_level_values('has_preview') == 'Gathering'],
+        extract_metrics_for_text_df_kwargs=dict(
+            ordered_prefix_col_names=[],
+            keep_prefix_metrics=False,
+            rebase_index_in_main_text=True,
+        ),
+    )
+    
+    metric_df = pd.concat([hunting_metric_df, gathering_metric_df], axis=0)
 
     metric_df = metric_df.rename({"index": "IA_ID", "Word": "IA_LABEL"}, axis=1)
 
@@ -460,7 +485,7 @@ if __name__ == "__main__":
         surprisal_extraction_model_names=["gpt2", "gpt2-medium"],
         spacy_model_name="en_core_web_sm",
         parsing_mode="re-tokenize",
-        add_question_in_prompt=False,
+        add_question_in_prompt=True,
         model_target_device="cuda:1",
         hf_access_token="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",
     )
