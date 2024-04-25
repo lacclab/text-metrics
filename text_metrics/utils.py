@@ -285,8 +285,8 @@ def _join_surp(words: list[str], tok_surps: list[tuple[str, float]]):
 def init_tok_n_model(
     model_name: str,
     device: str = "cpu",
-    pythia_checkpoint: str = "step143000",
-    hf_access_token: str = None,
+    pythia_checkpoint: str | None = "step143000",
+    hf_access_token: str | None = None,
 ):
     """This function initializes the tokenizer and model for the specified LLM variant.
 
@@ -321,7 +321,7 @@ def init_tok_n_model(
     model_variant = model_name.split("/")[-1]
     if "gpt-neox" in model_variant:
         tokenizer = GPTNeoXTokenizerFast.from_pretrained(model_name)
-    elif "gpt-neo" in model_variant or "gpt" in model_variant or "opt" in model_variant:
+    elif any(variant in model_variant for variant in ["gpt-neo", "gpt", "opt"]):
         tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
     elif "Llama" in model_variant:
         assert (
@@ -377,6 +377,7 @@ def surprise(
         The offset mapping is a list of tuples, where each tuple contains the start and end character index of the token
     """
     model_variant = model_name.split("/")[-1]
+    dont_add_bos_models = ["gpt-neox", "opt", "mamba", "Llama"]
     with torch.no_grad():
         all_log_probs = torch.tensor([], device=model.device)
         offset_mapping = []
@@ -384,7 +385,7 @@ def surprise(
         try:
             max_ctx = model.config.max_position_embeddings
         except:
-            max_ctx = 8192
+            max_ctx = 1e10
         # print(max_ctx)
         while True:
             encodings = tokenizer(
@@ -394,17 +395,13 @@ def surprise(
                 return_offsets_mapping=True,
             )
             # for gpt and pythia variants, we need to add bos and eos tokens
-            if (
-                "gpt-neox" in model_variant
-                or "opt" in model_variant
-                or "mamba" in model_variant
-                or "Llama" in model_variant
-            ):
+            if any(variant in model_variant for variant in dont_add_bos_models):
                 tensor_input = torch.tensor(
                     [encodings["input_ids"] + [tokenizer.eos_token_id]],
                     device=model.device,
                 )
             elif "gpt" in model_variant or "pythia" in model_variant:
+                # Source: https://github.com/rycolab/revisiting-uid/blob/0b60df7e8f474d9c7ac938e7d8a02fda6fc8787a/src/language_modeling.py#L47
                 tensor_input = torch.tensor(
                     [
                         [tokenizer.bos_token_id]
@@ -451,12 +448,7 @@ def surprise(
                 break
             start_ind += encodings["offset_mapping"][-stride][1]
 
-    if (
-        "gpt-neox" in model_variant
-        or "opt" in model_variant
-        or "mamba" in model_variant
-        or "Llama" in model_variant
-    ):
+    if any(variant in model_variant for variant in dont_add_bos_models):
         offset_mapping = offset_mapping[1:]
 
     return np.asarray(all_log_probs.cpu()), offset_mapping
