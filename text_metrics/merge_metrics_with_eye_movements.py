@@ -327,6 +327,9 @@ def extract_metrics_for_text_df_multiple_hf_models(
             **extract_metrics_for_text_df_kwargs,
         )
 
+        """Here we incrementally add the metrics from all models
+        In order to avoid duplicates, we merge only on the columns that were added in
+        the current iteration (surprisal estimates from the current model)"""
         if metric_df is None:
             metric_df = metric_dfs.copy()
         else:
@@ -366,7 +369,7 @@ def add_metrics_to_eye_tracking(
         surprisal_extraction_model_names (List[str]): The name of the models to extract surprisal
             values from (huggingface models)
         spacy_model_name (str): The name of the spacy model to use for parsing the text
-        parsing_mode (Literal[&quot;keep): Type of parsing to use. one of
+        parsing_mode (str): Type of parsing to use. one of
             ['keep-first','keep-all','re-tokenize']
         add_question_in_prompt (bool, optional): If True, the question will be added to the prompt
             for surprisal extraction, but the question itself will not be included in the metrics.
@@ -445,7 +448,7 @@ def add_metrics_to_eye_tracking(
 
 if __name__ == "__main__":
     et_data = pd.read_csv(
-        "/data/home/meiri.yoav/text-metrics/intermediate_eye_tracking_data.csv"
+        "intermediate_eye_tracking_data.csv"
     )
     et_data_enriched = add_metrics_to_eye_tracking(
         eye_tracking_data=et_data,
@@ -458,6 +461,6 @@ if __name__ == "__main__":
     )
     # Save the enriched data
     et_data_enriched.to_csv(
-        "/data/home/meiri.yoav/text-metrics/enriched_eye_tracking_data_Llama_surp.csv",
+        "enriched_eye_tracking_data_Llama_surp.csv",
         index=False,
     )
