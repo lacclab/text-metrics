@@ -2,7 +2,7 @@ from setuptools import setup
 # TODO improve with https://python-poetry.org/
 setup(
     name='text_metrics',
-    version='0.9.7',
+    version='1.0.0',
     packages=['text_metrics'],
     url='https://github.com/lacclab/text-metrics',
     license='',
@@ -15,7 +15,7 @@ setup(
             'lm_zoo': ['lm-zoo']
         },
     install_requires=[
-        'pandas>=1.3.4',
+        'pandas>2.1.0',
         'transformers>=4.12.0',
         'wordfreq>=3.0.3',
         'numpy>=1.20.3',
