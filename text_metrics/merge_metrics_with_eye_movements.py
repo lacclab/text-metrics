@@ -425,36 +425,36 @@ def add_metrics_to_eye_tracking(
         model_target_device=model_target_device,
         hf_access_token=hf_access_token,
     )
-    
-    hunting_metric_df = extract_metrics_partial(
-        # text_df is text_from_et where the index has_preview has value of 'Hunting'
-        text_df=text_from_et[text_from_et.index.get_level_values('has_preview') == 'Hunting'],
-        extract_metrics_for_text_df_kwargs=dict(
-            ordered_prefix_col_names=["question"] if add_question_in_prompt else [],
-            keep_prefix_metrics=False,
-            rebase_index_in_main_text=True,
-        ),
-    )
-    
-    hunting_metric_df_no_question = extract_metrics_partial(
-        text_df=text_from_et[text_from_et.index.get_level_values('has_preview') == 'Hunting'],
-        extract_metrics_for_text_df_kwargs=dict(
-            ordered_prefix_col_names=[],
-            keep_prefix_metrics=False,
-            rebase_index_in_main_text=True,
-        ),
-    )
-    
-    gathering_metric_df = extract_metrics_partial(
-        text_df=text_from_et[text_from_et.index.get_level_values('has_preview') == 'Gathering'],
-        extract_metrics_for_text_df_kwargs=dict(
-            ordered_prefix_col_names=[],
-            keep_prefix_metrics=False,
-            rebase_index_in_main_text=True,
-        ),
-    )
-    
-    metric_df = pd.concat([hunting_metric_df, gathering_metric_df], axis=0)
+    if add_question_in_prompt:
+        print("Extracting metrics: Hunting")
+        hunting_metric_df = extract_metrics_partial(
+            text_df=text_from_et[text_from_et.index.get_level_values('has_preview') == 'Hunting'],
+            extract_metrics_for_text_df_kwargs=dict(
+                ordered_prefix_col_names=["question"] if add_question_in_prompt else [],
+                keep_prefix_metrics=False,
+                rebase_index_in_main_text=True,
+            ),
+        )
+        print("Extracting metrics: Gathering")
+        gathering_metric_df = extract_metrics_partial(
+            text_df=text_from_et[text_from_et.index.get_level_values('has_preview') == 'Gathering'],
+            extract_metrics_for_text_df_kwargs=dict(
+                ordered_prefix_col_names=[],
+                keep_prefix_metrics=False,
+                rebase_index_in_main_text=True,
+            ),
+        )
+        
+        metric_df = pd.concat([hunting_metric_df, gathering_metric_df], axis=0)
+    else:
+        metric_df = hunting_metric_df = extract_metrics_partial(
+            text_df=text_from_et,
+            extract_metrics_for_text_df_kwargs=dict(
+                ordered_prefix_col_names=[],
+                keep_prefix_metrics=False,
+                rebase_index_in_main_text=True,
+            ),
+        )
 
     metric_df = metric_df.rename({"index": "IA_ID", "Word": "IA_LABEL"}, axis=1)
 
