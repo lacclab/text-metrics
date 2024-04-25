@@ -1,0 +1,32 @@
+name: osg-cuda
+channels:
+  - pytorch
+  - huggingface
+  - defaults
+  - conda-forge
+  - nvidia
+  # - r
+dependencies:
+  - python=3.12
+  - pandas
+  - numpy
+  - pyyaml
+  # - tabulate
+  - datasets
+  - cuda-toolkit
+  - pytorch-cuda=11.8
+  - pytorch=2.2
+  - jupyter
+  - ipykernel
+  - matplotlib
+  - transformers
+  - pip
+  - spacy
+  # - r-essentials
+  # - r-gratia
+  - pip:
+      # - dvc
+      - git+https://github.com/lacclab/text-metrics.git
+      # - dvclive
+      # - rpy2
+      - -e . # For development purposes
