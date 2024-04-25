@@ -47,32 +47,37 @@ def create_text_input(
     # add prefixes and document their word indices
     prefixes_word_indices_ranges = {}
     for prefix_col in prefix_col_names:
-        text_input += getattr(row, prefix_col) + " "
-        curr_prefix_len = len(getattr(row, prefix_col).split())
-        prefixes_word_indices_ranges[prefix_col] = (
-            curr_w_index,
-            curr_w_index + curr_prefix_len - 1,
-        )
-        curr_w_index += curr_prefix_len
+        curr_prefix = getattr(row, prefix_col)
+        text_input += curr_prefix + " "
+        curr_prefix_len = len(curr_prefix.split())
+        next_w_index = curr_w_index + curr_prefix_len  
+        prefixes_word_indices_ranges[prefix_col] = (  
+            curr_w_index,  
+            next_w_index - 1,  
+        )  
+        curr_w_index = next_w_index  
 
-    text_input += getattr(row, text_col_name).strip()
+    row_main_text = getattr(row, text_col_name).strip()
+    row_main_text_len = len(row_main_text.split())
+    text_input += row_main_text
     main_text_word_indices = (
         curr_w_index,
-        curr_w_index + len(getattr(row, text_col_name).split()) - 1,
+        curr_w_index + row_main_text_len - 1,
     )
-    curr_w_index += len(getattr(row, text_col_name).split()) - 1
+    curr_w_index += row_main_text_len - 1
 
     # add suffixes and document their word indices
     suffixes_word_indices_ranges = {}
     if len(suffix_col_names) > 0:
         text_input += " "
         for i, suffix_col in enumerate(suffix_col_names):
+            curr_suffix_text = getattr(row, suffix_col)
             text_input += (
-                getattr(row, suffix_col) + " "
+                curr_suffix_text + " "
                 if i < len(suffix_col_names) - 1
-                else getattr(row, suffix_col)
+                else curr_suffix_text
             )
-            curr_suffix_len = len(getattr(row, suffix_col).split())
+            curr_suffix_len = len(curr_suffix_text.split())
             suffixes_word_indices_ranges[suffix_col] = (
                 curr_w_index,
                 curr_w_index + curr_suffix_len - 1,
