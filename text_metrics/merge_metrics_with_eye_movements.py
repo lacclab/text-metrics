@@ -307,9 +307,8 @@ def extract_metrics_for_text_df_multiple_hf_models(
         print(f"Extracting surprisal using model: {model_name}")
 
         tokenizer, model = init_tok_n_model(
-            model_name=model_name, device="cpu", hf_access_token=hf_access_token
+            model_name=model_name, device=model_target_device, hf_access_token=hf_access_token
         )
-        model.to(model_target_device)
 
         metric_dfs = extract_metrics_for_text_df(
             text_df=text_df,
@@ -343,8 +342,7 @@ def extract_metrics_for_text_df_multiple_hf_models(
                 on=text_key_cols + ["index"],
                 validate="one_to_one",
             )
-        # move the model back to the cpu
-        model.to("cpu")
+        # move the model back to the cpu and delete it to free up space
         del model
         gc.collect()
         torch.cuda.empty_cache()
