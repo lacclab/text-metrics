@@ -205,12 +205,18 @@ def get_parsing_features(
     final_res = pd.DataFrame(res)
     if mode == "keep-all":
         pass
-    elif mode == "keep-first":
-        final_res = final_res.apply(
+
+    assert (
+        pd.__version__ > "2.1.0"
+    ), f"""Your pandas version is {pd.__version__}
+            Please upgrade pandas to version 2.1.0 or higher to use mode={mode}.
+            (requires pd.DataFrame.map)""".replace('\n', "")
+    if mode == "keep-first":
+        final_res = final_res.map(
             lambda x: x[0] if isinstance(x, list) and len(x) > 0 else x
         )
     elif mode == "re-tokenize":
-        final_res = final_res.apply(
+        final_res = final_res.map(
             lambda x: x[0] if isinstance(x, list) and len(x) > 0 else x
         )
 
