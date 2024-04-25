@@ -13,7 +13,7 @@ from transformers import (
 import spacy
 from spacy.language import Language
 import torch
-from utils import get_metrics, init_tok_n_model
+from text_metrics.utils import get_metrics, init_tok_n_model
 
 
 def create_text_input(
