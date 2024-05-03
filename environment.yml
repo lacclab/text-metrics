@@ -19,7 +19,7 @@ dependencies:
   - jupyter
   - ipykernel
   - matplotlib
-  - transformers=4.40
+  - transformers=4.40.1
   - pip
   - spacy
   # - r-essentials
