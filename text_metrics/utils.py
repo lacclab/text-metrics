@@ -445,14 +445,16 @@ def surprise(
 
             # Handle the case where the sentence is too long for the model
             offset = 0 if start_ind == 0 else stride - 1
-            all_log_probs = torch.cat([all_log_probs, log_probs[offset:-1]])
+            finished_decoding = encodings["offset_mapping"][-1][1] + start_ind == len(sentence)
+            log_probs_to_add = log_probs[offset:-1] if finished_decoding else log_probs[offset:]
+            all_log_probs = torch.cat([all_log_probs, log_probs_to_add])
             offset_mapping.extend(
                 [
                     (i + start_ind, j + start_ind)
                     for i, j in encodings["offset_mapping"][offset:]
                 ]
             )
-            if encodings["offset_mapping"][-1][1] + start_ind == len(sentence):
+            if finished_decoding:
                 break
             print(f"The sentence is too long, splitting it into chunks (stride size: {stride})")
             start_ind += encodings["offset_mapping"][-stride][1]
@@ -723,6 +725,7 @@ def get_metrics(
             model_name=model_name,
             context_stride=context_stride,
         )
+
         surprisal.rename(columns={"Surprisal": f"{model_name}_Surprisal"}, inplace=True)
         surprisals.append(surprisal)
 
@@ -745,7 +748,7 @@ def get_metrics(
             text_reformatted, parsing_model, parsing_mode
         )
         merged_df = merged_df.join(parsing_features)
-
+    
     return merged_df
 
 
