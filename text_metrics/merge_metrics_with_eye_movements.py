@@ -51,12 +51,12 @@ def create_text_input(
         curr_prefix = getattr(row, prefix_col)
         text_input += curr_prefix + " "
         curr_prefix_len = len(curr_prefix.split())
-        next_w_index = curr_w_index + curr_prefix_len  
-        prefixes_word_indices_ranges[prefix_col] = (  
-            curr_w_index,  
-            next_w_index - 1,  
-        )  
-        curr_w_index = next_w_index  
+        next_w_index = curr_w_index + curr_prefix_len
+        prefixes_word_indices_ranges[prefix_col] = (
+            curr_w_index,
+            next_w_index - 1,
+        )
+        curr_w_index = next_w_index
 
     row_main_text = getattr(row, text_col_name).strip()
     row_main_text_len = len(row_main_text.split())
@@ -140,8 +140,7 @@ def filter_prefix_suffix_metrics(
                 [isinstance(col, str) for col in cols_to_keep]
             )
             cols_to_remove = [col for col in full_col_names if col not in cols_to_keep]
-            
-        
+
         merged_df = merged_df.drop(
             merged_df.index[
                 sum(
@@ -275,7 +274,9 @@ def extract_metrics_for_text_df_multiple_hf_models(
     text_key_cols: List[str],
     surprisal_extraction_model_names: List[str],
     add_parsing_features: bool = True,
-    parsing_mode: Literal["keep-first", "keep-all", "re-tokenize"] | None = "re-tokenize",
+    parsing_mode: (
+        Literal["keep-first", "keep-all", "re-tokenize"] | None
+    ) = "re-tokenize",
     spacy_model: Language | None = spacy.load("en_core_web_sm"),
     model_target_device: str = "cpu",
     hf_access_token: str = None,
@@ -307,12 +308,22 @@ def extract_metrics_for_text_df_multiple_hf_models(
             whole text, each row is a word in the text. The columns are the main text
             identifier, word_index, word and extracted metrics.
     """
+    print(extract_metrics_for_text_df_kwargs)
+
     assert not (
         add_parsing_features is True and (parsing_mode is None or spacy_model is None)
     ), "If add_parsing_features is True, both parsing_mode and spacy_model must be provided"
-    
+
     if extract_metrics_for_text_df_kwargs is None:
         extract_metrics_for_text_df_kwargs = {}
+
+    # Check if get_metrics_kwargs is in extract_metrics_for_text_df_kwargs
+    get_metrics_kwargs = {}
+    if "get_metrics_kwargs" in extract_metrics_for_text_df_kwargs:
+        get_metrics_kwargs = extract_metrics_for_text_df_kwargs["get_metrics_kwargs"]
+        del extract_metrics_for_text_df_kwargs["get_metrics_kwargs"]
+    get_metrics_kwargs["parsing_model"] = spacy_model
+    get_metrics_kwargs["parsing_mode"] = parsing_mode
 
     metric_df = None
     for i, model_name in enumerate(surprisal_extraction_model_names):
@@ -322,21 +333,15 @@ def extract_metrics_for_text_df_multiple_hf_models(
         print(f"Extracting surprisal using model: {model_name}")
 
         tokenizer, model = init_tok_n_model(
-            model_name=model_name, device=model_target_device, hf_access_token=hf_access_token
+            model_name=model_name,
+            device=model_target_device,
+            hf_access_token=hf_access_token,
         )
 
-        # Check if get_metrics_kwargs is in extract_metrics_for_text_df_kwargs
-        get_metrics_kwargs = {}
-        if "get_metrics_kwargs" in extract_metrics_for_text_df_kwargs:
-            get_metrics_kwargs = extract_metrics_for_text_df_kwargs["get_metrics_kwargs"]
-            del extract_metrics_for_text_df_kwargs["get_metrics_kwargs"]
-        get_metrics_kwargs['parsing_model'] = spacy_model
-        get_metrics_kwargs['parsing_mode'] = parsing_mode
-        get_metrics_kwargs['add_parsing_features'] = (
+        get_metrics_kwargs["add_parsing_features"] = (
             True if metric_df is None and add_parsing_features else False
         )
-        
-        
+        print(get_metrics_kwargs)
         metric_dfs = extract_metrics_for_text_df(
             text_df=text_df,
             text_col_name=text_col_name,  # this is after turning all the words into a single string
@@ -431,7 +436,8 @@ def add_metrics_to_eye_tracking(
         "question",
     ]
 
-    extract_metrics_partial = partial(extract_metrics_for_text_df_multiple_hf_models,
+    extract_metrics_partial = partial(
+        extract_metrics_for_text_df_multiple_hf_models,
         text_col_name="IA_LABEL",
         text_key_cols=text_key_cols,
         surprisal_extraction_model_names=surprisal_extraction_model_names,
@@ -443,7 +449,9 @@ def add_metrics_to_eye_tracking(
     if add_question_in_prompt:
         print("Extracting metrics: Hunting")
         hunting_metric_df = extract_metrics_partial(
-            text_df=text_from_et[text_from_et.index.get_level_values('has_preview') == 'Hunting'],
+            text_df=text_from_et[
+                text_from_et.index.get_level_values("has_preview") == "Hunting"
+            ],
             extract_metrics_for_text_df_kwargs=dict(
                 ordered_prefix_col_names=["question"],
                 keep_prefix_metrics=False,
@@ -452,14 +460,16 @@ def add_metrics_to_eye_tracking(
         )
         print("Extracting metrics: Gathering")
         gathering_metric_df = extract_metrics_partial(
-            text_df=text_from_et[text_from_et.index.get_level_values('has_preview') == 'Gathering'],
+            text_df=text_from_et[
+                text_from_et.index.get_level_values("has_preview") == "Gathering"
+            ],
             extract_metrics_for_text_df_kwargs=dict(
                 ordered_prefix_col_names=[],
                 keep_prefix_metrics=False,
                 rebase_index_in_main_text=True,
             ),
         )
-        
+
         metric_df = pd.concat([hunting_metric_df, gathering_metric_df], axis=0)
     else:
         metric_df = extract_metrics_partial(
@@ -492,9 +502,7 @@ def add_metrics_to_eye_tracking(
 
 
 if __name__ == "__main__":
-    et_data = pd.read_csv(
-        "intermediate_eye_tracking_data.csv"
-    )
+    et_data = pd.read_csv("intermediate_eye_tracking_data.csv")
     et_data_enriched = add_metrics_to_eye_tracking(
         eye_tracking_data=et_data,
         surprisal_extraction_model_names=["gpt2", "gpt2-medium"],
