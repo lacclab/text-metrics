@@ -210,7 +210,9 @@ def get_parsing_features(
         pd.__version__ > "2.1.0"
     ), f"""Your pandas version is {pd.__version__}
             Please upgrade pandas to version 2.1.0 or higher to use mode={mode}.
-            (requires pd.DataFrame.map)""".replace('\n', "")
+            (requires pd.DataFrame.map)""".replace(
+        "\n", ""
+    )
     if mode == "keep-first":
         final_res = final_res.map(
             lambda x: x[0] if isinstance(x, list) and len(x) > 0 else x
@@ -452,6 +454,7 @@ def surprise(
             )
             if encodings["offset_mapping"][-1][1] + start_ind == len(sentence):
                 break
+            print(f"The sentence is too long, splitting it into chunks (stride size: {stride})")
             start_ind += encodings["offset_mapping"][-stride][1]
 
     if any(variant in model_variant for variant in dont_add_bos_models):
@@ -515,6 +518,7 @@ def get_surprisal(
     tokenizer: Union[AutoTokenizer, GPTNeoXTokenizerFast],
     model: Union[AutoModelForCausalLM, GPTNeoXForCausalLM],
     model_name: str,
+    context_stride: int = 512,
 ) -> pd.DataFrame:
     """
     Get surprisal values for each word in text.
@@ -540,7 +544,9 @@ def get_surprisal(
     3    you?   3.704563
     """
 
-    probs, offset_mapping = surprise(text, model, tokenizer, model_name)
+    probs, offset_mapping = surprise(
+        text, model, tokenizer, model_name, stride=context_stride
+    )
     return pd.DataFrame(
         string_to_log_probs(text, probs, offset_mapping)[1],
         columns=["Word", "Surprisal"],
@@ -681,6 +687,7 @@ def get_metrics(
         Literal["keep-first", "keep-all", "re-tokenize"] | None
     ) = "re-tokenize",
     add_parsing_features: bool = True,
+    context_stride: int = 512,
 ) -> pd.DataFrame:
     """
     Wrapper function to get the surprisal and frequency values and length of each word in the text.
@@ -714,6 +721,7 @@ def get_metrics(
             tokenizer=tokenizer,
             model=model,
             model_name=model_name,
+            context_stride=context_stride,
         )
         surprisal.rename(columns={"Surprisal": f"{model_name}_Surprisal"}, inplace=True)
         surprisals.append(surprisal)

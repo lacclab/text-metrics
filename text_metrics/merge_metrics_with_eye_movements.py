@@ -456,7 +456,7 @@ def add_metrics_to_eye_tracking(
         
         metric_df = pd.concat([hunting_metric_df, gathering_metric_df], axis=0)
     else:
-        metric_df = hunting_metric_df = extract_metrics_partial(
+        metric_df = extract_metrics_partial(
             text_df=text_from_et,
             extract_metrics_for_text_df_kwargs=dict(
                 ordered_prefix_col_names=[],
