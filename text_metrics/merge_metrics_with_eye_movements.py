@@ -326,6 +326,7 @@ def extract_metrics_for_text_df_multiple_hf_models(
         )
 
         # Check if get_metrics_kwargs is in extract_metrics_for_text_df_kwargs
+        get_metrics_kwargs = {}
         if "get_metrics_kwargs" in extract_metrics_for_text_df_kwargs:
             get_metrics_kwargs = extract_metrics_for_text_df_kwargs["get_metrics_kwargs"]
             del extract_metrics_for_text_df_kwargs["get_metrics_kwargs"]
