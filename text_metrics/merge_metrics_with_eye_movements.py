@@ -325,6 +325,17 @@ def extract_metrics_for_text_df_multiple_hf_models(
             model_name=model_name, device=model_target_device, hf_access_token=hf_access_token
         )
 
+        # Check if get_metrics_kwargs is in extract_metrics_for_text_df_kwargs
+        if "get_metrics_kwargs" in extract_metrics_for_text_df_kwargs:
+            get_metrics_kwargs = extract_metrics_for_text_df_kwargs["get_metrics_kwargs"]
+            del extract_metrics_for_text_df_kwargs["get_metrics_kwargs"]
+        get_metrics_kwargs['parsing_model'] = spacy_model
+        get_metrics_kwargs['parsing_mode'] = parsing_mode
+        get_metrics_kwargs['add_parsing_features'] = (
+            True if metric_df is None and add_parsing_features else False
+        )
+        
+        
         metric_dfs = extract_metrics_for_text_df(
             text_df=text_df,
             text_col_name=text_col_name,  # this is after turning all the words into a single string
@@ -332,13 +343,7 @@ def extract_metrics_for_text_df_multiple_hf_models(
             model=model,
             model_name=surprisal_extraction_model_names[i],
             tokenizer=tokenizer,
-            get_metrics_kwargs={
-                "parsing_model": spacy_model,
-                "parsing_mode": parsing_mode,
-                "add_parsing_features": (
-                    True if metric_df is None and add_parsing_features else False
-                ),
-            },
+            get_metrics_kwargs=get_metrics_kwargs,
             **extract_metrics_for_text_df_kwargs,
         )
 
