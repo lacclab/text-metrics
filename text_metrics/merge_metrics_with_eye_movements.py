@@ -308,8 +308,6 @@ def extract_metrics_for_text_df_multiple_hf_models(
             whole text, each row is a word in the text. The columns are the main text
             identifier, word_index, word and extracted metrics.
     """
-    print(extract_metrics_for_text_df_kwargs)
-
     assert not (
         add_parsing_features is True and (parsing_mode is None or spacy_model is None)
     ), "If add_parsing_features is True, both parsing_mode and spacy_model must be provided"
@@ -341,7 +339,6 @@ def extract_metrics_for_text_df_multiple_hf_models(
         get_metrics_kwargs["add_parsing_features"] = (
             True if metric_df is None and add_parsing_features else False
         )
-        print(get_metrics_kwargs)
         metric_dfs = extract_metrics_for_text_df(
             text_df=text_df,
             text_col_name=text_col_name,  # this is after turning all the words into a single string
