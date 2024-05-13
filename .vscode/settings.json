@@ -1,14 +1,14 @@
 {
     "python.testing.pytestArgs": [
-        "eyeutils"
+        "./text_metrics/tests"
     ],
     "python.testing.unittestEnabled": true,
     "python.testing.pytestEnabled": false,
     "python.testing.unittestArgs": [
         "-v",
         "-s",
-        "./eyeutils",
+        "./tests",
         "-p",
-        "test_*.py"
+        "*_test.py"
     ]
 }

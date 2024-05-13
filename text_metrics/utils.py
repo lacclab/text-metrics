@@ -2,27 +2,24 @@
 
 import string
 from collections import defaultdict
-from typing import List, Literal
+from typing import List, Literal, Union
 
 import numpy as np
 import pandas as pd
 import pkg_resources
 import spacy
 import torch
+from spacy.language import Language
 from torch.nn.functional import log_softmax
 from transformers import (
-    AutoTokenizer,
     AutoModelForCausalLM,
-    GPTNeoXTokenizerFast,
+    AutoTokenizer,
     GPTNeoXForCausalLM,
-    MambaForCausalLM,
+    GPTNeoXTokenizerFast,
     LlamaForCausalLM,
+    MambaForCausalLM,
 )
 from wordfreq import tokenize, word_frequency
-from spacy.language import Language
-import os, sys, torch, transformers
-from typing import List, Union
-
 
 CONTENT_WORDS = {
     "PUNCT": False,
@@ -363,6 +360,68 @@ def init_tok_n_model(
     return tokenizer, model
 
 
+def _create_input_tokens(
+    tokenizer: Union[AutoTokenizer, GPTNeoXTokenizerFast],
+    encodings: dict,
+    start_ind: int,
+    is_last_chunk: bool,
+    device: str,
+):
+
+    try:
+        bos_token_added = tokenizer.bos_token_id
+    except AttributeError:
+        bos_token_added = tokenizer.pad_token_id
+
+    tokens_lst = encodings["input_ids"]
+    if is_last_chunk:
+        tokens_lst.append(tokenizer.eos_token_id)
+    if start_ind == 0:
+        tokens_lst = [bos_token_added] + tokens_lst
+    tensor_input = torch.tensor(
+        [tokens_lst],
+        device=device,
+    )
+    return tensor_input
+
+
+def _tokens_to_log_probs(
+    model: Union[AutoModelForCausalLM, GPTNeoXForCausalLM],
+    tensor_input: torch.Tensor,
+    is_last_chunk: bool,
+):
+    output = model(tensor_input, labels=tensor_input)
+    shift_logits = output["logits"][
+        ..., :-1, :
+    ].contiguous()  # remove the last token from the logits
+
+    #  This shift is necessary because the labels are shifted by one position to the right
+    # (because the logits are w.r.t the next token)
+    shift_labels = tensor_input[
+        ..., 1:
+    ].contiguous()  #! remove the first token from the labels,
+
+    log_probs = torch.nn.functional.cross_entropy(
+        shift_logits.view(-1, shift_logits.size(-1)),
+        shift_labels.view(-1),
+        reduction="none",
+    )
+
+    # varify that the average of the log_probs is equal to the loss
+    assert torch.isclose(
+        torch.exp(sum(log_probs) / len(log_probs)), torch.exp(output["loss"])
+    )
+
+    shift_labels = shift_labels[0]
+
+    if is_last_chunk:
+        # remove the eos_token log_prob
+        log_probs = log_probs[:-1]
+        shift_labels = shift_labels[:-1]
+
+    return log_probs, shift_labels
+
+
 def surprise(
     sentence: str,
     model: Union[AutoModelForCausalLM, GPTNeoXForCausalLM],
@@ -384,85 +443,92 @@ def surprise(
         Tuple[np.ndarray, List[Tuple[int]]]: The surprisal values for each token in the sentence, the offset mapping
         The offset mapping is a list of tuples, where each tuple contains the start and end character index of the token
     """
-    model_variant = model_name.split("/")[-1]
-    dont_add_bos_models = ["gpt-neox", "opt", "mamba", "Llama"]
     with torch.no_grad():
         all_log_probs = torch.tensor([], device=model.device)
         offset_mapping = []
         start_ind = 0
         try:
             max_ctx = model.config.max_position_embeddings
-        except:
+        except AttributeError:
             max_ctx = 1e10
+
+        assert (
+            stride < max_ctx
+        ), f"Stride size {stride} is larger than the maximum context size {max_ctx}"
+
         # print(max_ctx)
+        accumulated_tokenized_text = []
         while True:
             encodings = tokenizer(
                 sentence[start_ind:],
                 max_length=max_ctx - 2,
                 truncation=True,
                 return_offsets_mapping=True,
+                add_special_tokens=False,
             )
-            # for gpt and pythia variants, we need to add bos and eos tokens
-            if any(variant in model_variant for variant in dont_add_bos_models):
-                tensor_input = torch.tensor(
-                    [encodings["input_ids"] + [tokenizer.eos_token_id]],
-                    device=model.device,
-                )
-            elif "gpt" in model_variant or "pythia" in model_variant:
-                # Source: https://github.com/rycolab/revisiting-uid/blob/0b60df7e8f474d9c7ac938e7d8a02fda6fc8787a/src/language_modeling.py#L47
-                tensor_input = torch.tensor(
-                    [
-                        [tokenizer.bos_token_id]
-                        + encodings["input_ids"]
-                        + [tokenizer.eos_token_id]
-                    ],
-                    device=model.device,
-                )
-            else:
-                raise ValueError(f"Unsupported LLM variant {model_variant}")
-
-            output = model(tensor_input, labels=tensor_input)
-            shift_logits = output["logits"][
-                ..., :-1, :
-            ].contiguous()  # remove the last token from the logits
-
-            #  This shift is necessary because the labels are shifted by one position to the right
-            # (because the logits are w.r.t the next token)
-            shift_labels = tensor_input[
-                ..., 1:
-            ].contiguous()  # remove the first token from the labels,
-
-            log_probs = torch.nn.functional.cross_entropy(
-                shift_logits.view(-1, shift_logits.size(-1)),
-                shift_labels.view(-1),
-                reduction="none",
+            is_last_chunk = (encodings["offset_mapping"][-1][1] + start_ind) == len(
+                sentence
             )
 
-            # varify that the average of the log_probs is equal to the loss
-            assert torch.isclose(
-                torch.exp(sum(log_probs) / len(log_probs)), torch.exp(output["loss"])
+            tensor_input = _create_input_tokens(
+                tokenizer,
+                encodings,
+                start_ind,
+                is_last_chunk,
+                model.device,
+            )
+
+            log_probs, shift_labels = _tokens_to_log_probs(
+                model, tensor_input, is_last_chunk
             )
 
             # Handle the case where the sentence is too long for the model
             offset = 0 if start_ind == 0 else stride - 1
-            finished_decoding = encodings["offset_mapping"][-1][1] + start_ind == len(sentence)
-            log_probs_to_add = log_probs[offset:-1] if finished_decoding else log_probs[offset:]
-            all_log_probs = torch.cat([all_log_probs, log_probs_to_add])
+            all_log_probs = torch.cat([all_log_probs, log_probs[offset:]])
+            accumulated_tokenized_text.append(tokenizer.decode(shift_labels[offset:]))
+
+            left_index_add_offset_mapping = offset if start_ind == 0 else offset + 1
+            offset_mapping_to_add = encodings["offset_mapping"][
+                left_index_add_offset_mapping:
+            ]
+
             offset_mapping.extend(
-                [
-                    (i + start_ind, j + start_ind)
-                    for i, j in encodings["offset_mapping"][offset:]
-                ]
+                [(i + start_ind, j + start_ind) for i, j in offset_mapping_to_add]
             )
-            if finished_decoding:
+            if is_last_chunk:
                 break
-            print(f"The sentence is too long, splitting it into chunks (stride size: {stride})")
-            start_ind += encodings["offset_mapping"][-stride][1]
 
-    if any(variant in model_variant for variant in dont_add_bos_models):
-        offset_mapping = offset_mapping[1:]
+            if start_ind == 0:
+                "If we got here, the context is too long"
+                # find the context length in tokens
+                context_length = len(tokenizer.encode(sentence))
+                print(
+                    f"The context length is too long ({context_length}>{max_ctx}) for {model_name}. Splitting the sentence into chunks with stride {stride}"
+                )
 
-    return np.asarray(all_log_probs.cpu()), offset_mapping
+            start_ind += encodings["offset_mapping"][-stride - 1][1]
+
+    # Make sure the offset mapping are continous
+    assert (
+        sum(
+            [
+                offset_mapping[i][1] != offset_mapping[i + 1][0]
+                for i in range(len(offset_mapping) - 1)
+            ]
+        )
+        == 0
+    )
+
+    # The accumulated_tokenized_text is the text we extract surprisal values for
+    # It is after removing the BOS/EOS tokens
+    # Make sure the accumulated_tokenized_text is equal to the original sentence
+    assert "".join(accumulated_tokenized_text) == sentence
+
+    all_log_probs = np.asarray(all_log_probs.cpu())
+
+    assert all_log_probs.shape[0] == len(offset_mapping)
+
+    return all_log_probs, offset_mapping
 
 
 def get_word_mapping(words: List[str]):
@@ -748,7 +814,7 @@ def get_metrics(
             text_reformatted, parsing_model, parsing_mode
         )
         merged_df = merged_df.join(parsing_features)
-    
+
     return merged_df
 
 
