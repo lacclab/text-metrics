@@ -2,28 +2,24 @@
 
 import string
 from collections import defaultdict
-from typing import List, Literal
+from typing import List, Literal, Union
 
 import numpy as np
 import pandas as pd
 import pkg_resources
 import spacy
 import torch
+from spacy.language import Language
 from torch.nn.functional import log_softmax
 from transformers import (
-    AutoTokenizer,
     AutoModelForCausalLM,
-    GPTNeoXTokenizerFast,
+    AutoTokenizer,
     GPTNeoXForCausalLM,
-    MambaForCausalLM,
+    GPTNeoXTokenizerFast,
     LlamaForCausalLM,
+    MambaForCausalLM,
 )
 from wordfreq import tokenize, word_frequency
-from spacy.language import Language
-import os, sys, torch, transformers
-from typing import List, Union
-import unittest
-
 
 CONTENT_WORDS = {
     "PUNCT": False,
