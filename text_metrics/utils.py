@@ -389,6 +389,7 @@ def _create_input_tokens(
     )
     return tensor_input
 
+
 def _tokens_to_log_probs(
     model: Union[AutoModelForCausalLM, GPTNeoXForCausalLM],
     tensor_input: torch.Tensor,
@@ -416,12 +417,15 @@ def _tokens_to_log_probs(
         torch.exp(sum(log_probs) / len(log_probs)), torch.exp(output["loss"])
     )
 
+    shift_labels = shift_labels[0]
+
     if is_last_chunk:
         # remove the eos_token log_prob
         log_probs = log_probs[:-1]
         shift_labels = shift_labels[:-1]
-    
+
     return log_probs, shift_labels
+
 
 def surprise(
     sentence: str,
@@ -455,13 +459,14 @@ def surprise(
         except AttributeError:
             max_ctx = 1e10
         # print(max_ctx)
-        accumulative_tokenized_text = []
+        accumulated_tokenized_text = []
         while True:
             encodings = tokenizer(
                 sentence[start_ind:],
                 max_length=max_ctx - 2,
                 truncation=True,
                 return_offsets_mapping=True,
+                add_special_tokens=False,
             )
             is_last_chunk = (encodings["offset_mapping"][-1][1] + start_ind) == len(
                 sentence
@@ -480,13 +485,17 @@ def surprise(
             log_probs, shift_labels = _tokens_to_log_probs(
                 model, tensor_input, is_last_chunk
             )
-            
+
             # Handle the case where the sentence is too long for the model
             offset = 0 if start_ind == 0 else stride - 1
             all_log_probs = torch.cat([all_log_probs, log_probs[offset:]])
-            accumulative_tokenized_text.append(tokenizer.decode(shift_labels[offset:]))
+            accumulated_tokenized_text.append(tokenizer.decode(shift_labels[offset:]))
+
+            left_index_add_offset_mapping = offset if start_ind == 0 else offset + 1
+            offset_mapping_to_add = encodings["offset_mapping"][
+                left_index_add_offset_mapping:
+            ]
             
-            offset_mapping_to_add = encodings["offset_mapping"][offset:]
             offset_mapping.extend(
                 [(i + start_ind, j + start_ind) for i, j in offset_mapping_to_add]
             )
@@ -497,6 +506,7 @@ def surprise(
             )
             start_ind += encodings["offset_mapping"][-stride - 1][1]
 
+    # Make sure the offset mapping are continous
     assert (
         sum(
             [
@@ -506,10 +516,17 @@ def surprise(
         )
         == 0
     )
-    
-    assert "".join(accumulative_tokenized_text) == sentence
 
-    return np.asarray(all_log_probs.cpu()), offset_mapping
+    # The accumulated_tokenized_text is the text we extract surprisal values for
+    # It is after removing the BOS/EOS tokens 
+    # Make sure the accumulated_tokenized_text is equal to the original sentence
+    assert "".join(accumulated_tokenized_text) == sentence
+    
+    all_log_probs = np.asarray(all_log_probs.cpu())
+    
+    assert all_log_probs.shape[0] == len(offset_mapping)
+
+    return all_log_probs, offset_mapping
 
 
 def get_word_mapping(words: List[str]):
