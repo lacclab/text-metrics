@@ -495,7 +495,7 @@ def surprise(
             offset_mapping_to_add = encodings["offset_mapping"][
                 left_index_add_offset_mapping:
             ]
-            
+
             offset_mapping.extend(
                 [(i + start_ind, j + start_ind) for i, j in offset_mapping_to_add]
             )
@@ -518,12 +518,12 @@ def surprise(
     )
 
     # The accumulated_tokenized_text is the text we extract surprisal values for
-    # It is after removing the BOS/EOS tokens 
+    # It is after removing the BOS/EOS tokens
     # Make sure the accumulated_tokenized_text is equal to the original sentence
     assert "".join(accumulated_tokenized_text) == sentence
-    
+
     all_log_probs = np.asarray(all_log_probs.cpu())
-    
+
     assert all_log_probs.shape[0] == len(offset_mapping)
 
     return all_log_probs, offset_mapping
