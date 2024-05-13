@@ -522,7 +522,10 @@ def surprise(
     # The accumulated_tokenized_text is the text we extract surprisal values for
     # It is after removing the BOS/EOS tokens
     # Make sure the accumulated_tokenized_text is equal to the original sentence
-    assert accumulated_tokenized_text == tokenizer(sentence)['input_ids']
+    assert (
+        accumulated_tokenized_text
+        == tokenizer(sentence, add_special_tokens=False)["input_ids"]
+    )
 
     all_log_probs = np.asarray(all_log_probs.cpu())
 
