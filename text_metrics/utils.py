@@ -485,7 +485,7 @@ def surprise(
             # Handle the case where the sentence is too long for the model
             offset = 0 if start_ind == 0 else stride - 1
             all_log_probs = torch.cat([all_log_probs, log_probs[offset:]])
-            accumulated_tokenized_text.append(tokenizer.decode(shift_labels[offset:]))
+            accumulated_tokenized_text += shift_labels[offset:]
 
             left_index_add_offset_mapping = offset if start_ind == 0 else offset + 1
             offset_mapping_to_add = encodings["offset_mapping"][
@@ -522,7 +522,7 @@ def surprise(
     # The accumulated_tokenized_text is the text we extract surprisal values for
     # It is after removing the BOS/EOS tokens
     # Make sure the accumulated_tokenized_text is equal to the original sentence
-    assert "".join(accumulated_tokenized_text) == sentence
+    assert accumulated_tokenized_text == tokenizer(sentence)['input_ids']
 
     all_log_probs = np.asarray(all_log_probs.cpu())
 
