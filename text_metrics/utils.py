@@ -454,6 +454,11 @@ def surprise(
             max_ctx = model.config.max_position_embeddings
         except AttributeError:
             max_ctx = 1e10
+
+        assert (
+            stride < max_ctx
+        ), f"Stride size {stride} is larger than the maximum context size {max_ctx}"
+
         # print(max_ctx)
         accumulated_tokenized_text = []
         while True:
@@ -497,9 +502,15 @@ def surprise(
             )
             if is_last_chunk:
                 break
-            print(
-                f"The sentence is too long, splitting it into chunks (stride size: {stride})"
-            )
+
+            if start_ind == 0:
+                "If we got here, the context is too long"
+                # find the context length in tokens
+                context_length = len(tokenizer.encode(sentence))
+                print(
+                    f"The context length is too long ({context_length}>{max_ctx}) for {model_name}. Splitting the sentence into chunks with stride {stride}"
+                )
+
             start_ind += encodings["offset_mapping"][-stride - 1][1]
 
     # Make sure the offset mapping are continous
