@@ -14,8 +14,12 @@ def main():
     for model_name in model_names:
         tokenizer, model = init_tok_n_model(model_name)
         print(f"Model: {model_name}")
-        _ = get_surprisal(clean_text(below_2048), tokenizer, model, model_name, context_stride=1625)
-        _ = get_surprisal(clean_text(over_2048), tokenizer, model, model_name, context_stride=1625)
+        _ = get_surprisal(
+            clean_text(below_2048), tokenizer, model, model_name, context_stride=1625
+        )
+        _ = get_surprisal(
+            clean_text(over_2048), tokenizer, model, model_name, context_stride=1625
+        )
         print("Didn't crash")
 
 
