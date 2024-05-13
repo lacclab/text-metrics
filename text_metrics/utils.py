@@ -362,17 +362,16 @@ def init_tok_n_model(
 
 def _create_input_tokens(
     tokenizer: Union[AutoTokenizer, GPTNeoXTokenizerFast],
-    model_variant: str,
-    dont_add_bos_models: List[str],
     encodings: dict,
     start_ind: int,
     is_last_chunk: bool,
     device: str,
 ):
-    if any(variant in model_variant for variant in dont_add_bos_models):
-        bos_token_added = tokenizer.pad_token_id
-    else:
+
+    try:
         bos_token_added = tokenizer.bos_token_id
+    except AttributeError:
+        bos_token_added = tokenizer.pad_token_id
 
     tokens_lst = encodings["input_ids"]
     if is_last_chunk:
@@ -444,8 +443,6 @@ def surprise(
         Tuple[np.ndarray, List[Tuple[int]]]: The surprisal values for each token in the sentence, the offset mapping
         The offset mapping is a list of tuples, where each tuple contains the start and end character index of the token
     """
-    model_variant = model_name.split("/")[-1]
-    dont_add_bos_models = ["gpt-neox", "opt", "mamba", "Llama"]
     with torch.no_grad():
         all_log_probs = torch.tensor([], device=model.device)
         offset_mapping = []
@@ -475,8 +472,6 @@ def surprise(
 
             tensor_input = _create_input_tokens(
                 tokenizer,
-                model_variant,
-                dont_add_bos_models,
                 encodings,
                 start_ind,
                 is_last_chunk,
