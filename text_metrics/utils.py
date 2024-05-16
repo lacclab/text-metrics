@@ -759,7 +759,7 @@ def clean_text(raw_text: str) -> str:
 
 def get_metrics(
     text: str,
-    models: List[
+    models: list[
         AutoModelForCausalLM, GPTNeoXForCausalLM, MambaForCausalLM, LlamaForCausalLM
     ],
     tokenizers: List[AutoTokenizer],
