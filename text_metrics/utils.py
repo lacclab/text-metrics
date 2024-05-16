@@ -450,7 +450,7 @@ def surprise(
         try:
             max_ctx = model.config.max_position_embeddings
         except AttributeError:
-            max_ctx = 1e10
+            max_ctx = int(1e6)
 
         assert (
             stride < max_ctx
@@ -819,10 +819,28 @@ def get_metrics(
 
 
 if __name__ == "__main__":
-    model_names = ["gpt2", "gpt2"]
+    text = """
+    Benjamin Carle is 96.9% made in France, even his underpants and socks. Six Ikea forks, a Chinese guitar and some wall paint stopped him being called 
+    100% French, but nobody is perfect. Carle, 26, decided, in 2013, to see if it was possible to live using only French-made products for ten months 
+    as part of a television documentary. He got the idea after the Minister for Economic Renewal, Arnaud Montebourg, asked the French people to buy 
+    French products. For the experiment, Carle had to give up his smartphone, television, refrigerator (all made in China); his glasses (Italian); 
+    his morning coffee (Guatemalan) and his favourite David Bowie music (British). It is lucky that his girlfriend, Anaïs, and cat, Loon, are both 
+    French, so he didn't have to give them up. 
+    Benjamin Carle is 96.9% made in France, even his underpants and socks. Six Ikea forks, a Chinese guitar and some wall paint stopped him being called 
+    100% French, but nobody is perfect. Carle, 26, decided, in 2013, to see if it was possible to live using only French-made products for ten months 
+    as part of a television documentary. He got the idea after the Minister for Economic Renewal, Arnaud Montebourg, asked the French people to buy 
+    French products. For the experiment, Carle had to give up his smartphone, television, refrigerator (all made in China); his glasses (Italian); 
+    his morning coffee (Guatemalan) and his favourite David Bowie music (British). It is lucky that his girlfriend, Anaïs, and cat, Loon, are both 
+    French, so he didn't have to give them up. 
+    What is true of Carle's Ikea forks?
+    """.replace('\n', '').replace('\t', '').replace('    ', '')
+    model_names = ["state-spaces/mamba-370m-hf",]
+    tok, model = init_tok_n_model(model_name=model_names[0], device='cuda:0')
     input_text = "hello, how are you?"
-    # TODO Example not updated
-    words_with_metrics = get_metrics(
-        text=input_text, surprisal_extraction_model_names=model_names
+    surp_res = get_surprisal(
+        text=text,
+        tokenizer=tok,
+        model=model,
+        model_name=model_names[0],
     )
-    print(words_with_metrics)
+    print(surp_res)
