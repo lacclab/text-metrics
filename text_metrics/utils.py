@@ -386,7 +386,9 @@ def _create_input_tokens(
 
 
 def _tokens_to_log_probs(
-    model: Union[AutoModelForCausalLM, GPTNeoXForCausalLM],
+    model: Union[
+        AutoModelForCausalLM, GPTNeoXForCausalLM, MambaForCausalLM, LlamaForCausalLM
+    ],
     tensor_input: torch.Tensor,
     is_last_chunk: bool,
 ):
@@ -424,8 +426,13 @@ def _tokens_to_log_probs(
 
 def surprise(
     sentence: str,
-    model: Union[AutoModelForCausalLM, GPTNeoXForCausalLM],
-    tokenizer: Union[AutoTokenizer, GPTNeoXTokenizerFast],
+    model: Union[
+        AutoModelForCausalLM, GPTNeoXForCausalLM, MambaForCausalLM, LlamaForCausalLM
+    ],
+    tokenizer: Union[
+        AutoTokenizer,
+        GPTNeoXTokenizerFast,
+    ],
     model_name: str,
     stride: int = 512,
 ):
@@ -450,7 +457,7 @@ def surprise(
         try:
             max_ctx = model.config.max_position_embeddings
         except AttributeError:
-            max_ctx = 1e10
+            max_ctx = int(1e6)
 
         assert (
             stride < max_ctx
@@ -587,7 +594,9 @@ def string_to_log_probs(string: str, probs: np.ndarray, offsets: list):
 def get_surprisal(
     text: str,
     tokenizer: Union[AutoTokenizer, GPTNeoXTokenizerFast],
-    model: Union[AutoModelForCausalLM, GPTNeoXForCausalLM],
+    model: Union[
+        AutoModelForCausalLM, GPTNeoXForCausalLM, MambaForCausalLM, LlamaForCausalLM
+    ],
     model_name: str,
     context_stride: int = 512,
 ) -> pd.DataFrame:
@@ -750,7 +759,9 @@ def clean_text(raw_text: str) -> str:
 
 def get_metrics(
     text: str,
-    models: List[AutoModelForCausalLM],
+    models: List[
+        AutoModelForCausalLM, GPTNeoXForCausalLM, MambaForCausalLM, LlamaForCausalLM
+    ],
     tokenizers: List[AutoTokenizer],
     model_names: List[str],
     parsing_model: spacy.Language | None,
@@ -822,10 +833,36 @@ def get_metrics(
 
 
 if __name__ == "__main__":
-    model_names = ["gpt2", "gpt2"]
-    input_text = "hello, how are you?"
-    # TODO Example not updated
-    words_with_metrics = get_metrics(
-        text=input_text, surprisal_extraction_model_names=model_names
+    text = (
+        """
+    Benjamin Carle is 96.9% made in France, even his underpants and socks. Six Ikea forks, a Chinese guitar and some wall paint stopped him being called 
+    100% French, but nobody is perfect. Carle, 26, decided, in 2013, to see if it was possible to live using only French-made products for ten months 
+    as part of a television documentary. He got the idea after the Minister for Economic Renewal, Arnaud Montebourg, asked the French people to buy 
+    French products. For the experiment, Carle had to give up his smartphone, television, refrigerator (all made in China); his glasses (Italian); 
+    his morning coffee (Guatemalan) and his favourite David Bowie music (British). It is lucky that his girlfriend, Anaïs, and cat, Loon, are both 
+    French, so he didn't have to give them up. 
+    Benjamin Carle is 96.9% made in France, even his underpants and socks. Six Ikea forks, a Chinese guitar and some wall paint stopped him being called 
+    100% French, but nobody is perfect. Carle, 26, decided, in 2013, to see if it was possible to live using only French-made products for ten months 
+    as part of a television documentary. He got the idea after the Minister for Economic Renewal, Arnaud Montebourg, asked the French people to buy 
+    French products. For the experiment, Carle had to give up his smartphone, television, refrigerator (all made in China); his glasses (Italian); 
+    his morning coffee (Guatemalan) and his favourite David Bowie music (British). It is lucky that his girlfriend, Anaïs, and cat, Loon, are both 
+    French, so he didn't have to give them up. 
+    What is true of Carle's Ikea forks?
+    """.replace(
+            "\n", ""
+        )
+        .replace("\t", "")
+        .replace("    ", "")
     )
-    print(words_with_metrics)
+    model_names = [
+        "state-spaces/mamba-370m-hf",
+    ]
+    tok, model = init_tok_n_model(model_name=model_names[0], device="cuda:0")
+    input_text = "hello, how are you?"
+    surp_res = get_surprisal(
+        text=text,
+        tokenizer=tok,
+        model=model,
+        model_name=model_names[0],
+    )
+    print(surp_res)
