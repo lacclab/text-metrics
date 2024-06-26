@@ -320,7 +320,7 @@ def init_tok_n_model(
               Union[AutoModelForCausalLM, GPTNeoXForCausalLM]]: tokenizer, model
     """
     model_variant = model_name.split("/")[-1]
-    if any(variant in model_variant for variant in ["gpt-neo", "gpt", "opt", "mamba"]):
+    if any(variant in model_variant for variant in ["gpt-neo", "gpt", "opt", "mamba", 'Mistral']):
         tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
     elif "gpt-neox" in model_variant:
         tokenizer = GPTNeoXTokenizerFast.from_pretrained(model_name)
@@ -338,7 +338,7 @@ def init_tok_n_model(
     else:
         raise ValueError("Unsupported LLM variant")
 
-    if any(variant in model_variant for variant in ["gpt-neo", "gpt", "opt"]):
+    if any(variant in model_variant for variant in ["gpt-neo", "gpt", "opt", 'Mistral']):
         model = AutoModelForCausalLM.from_pretrained(model_name)
     elif "pythia" in model_variant:
         model = GPTNeoXForCausalLM.from_pretrained(
