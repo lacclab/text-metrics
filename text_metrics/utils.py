@@ -319,6 +319,7 @@ def init_tok_n_model(
         Tuple[Union[AutoTokenizer, GPTNeoXTokenizerFast],
               Union[AutoModelForCausalLM, GPTNeoXForCausalLM]]: tokenizer, model
     """
+    # TODO merge AutoTokenizer/ModelForCausalLM with/without hf_access_token?
     model_variant = model_name.split("/")[-1]
     if any(variant in model_variant for variant in ["gpt-neo", "gpt", "opt", "mamba"]):
         tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
@@ -346,8 +347,10 @@ def init_tok_n_model(
         )
     elif "mamba" in model_variant:
         model = MambaForCausalLM.from_pretrained(model_name)
-    elif any(variant in model_variant for variant in ["Llama", 'Mistral']):
+    elif "Llama" in model_variant:
         model = LlamaForCausalLM.from_pretrained(model_name, token=hf_access_token)
+    elif "Mistral" in model_variant:
+        model = AutoModelForCausalLM.from_pretrained(model_name, token=hf_access_token)
     else:
         raise ValueError("Unsupported LLM variant")
 
