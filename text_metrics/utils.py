@@ -320,11 +320,11 @@ def init_tok_n_model(
               Union[AutoModelForCausalLM, GPTNeoXForCausalLM]]: tokenizer, model
     """
     model_variant = model_name.split("/")[-1]
-    if any(variant in model_variant for variant in ["gpt-neo", "gpt", "opt", "mamba", 'Mistral']):
+    if any(variant in model_variant for variant in ["gpt-neo", "gpt", "opt", "mamba"]):
         tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
     elif "gpt-neox" in model_variant:
         tokenizer = GPTNeoXTokenizerFast.from_pretrained(model_name)
-    elif "Llama" in model_variant:
+    elif any(variant in model_variant for variant in ["Llama", 'Mistral']):
         assert (
             hf_access_token is not None
         ), f"Please provide the HuggingFace access token to load {model_name}"
@@ -338,7 +338,7 @@ def init_tok_n_model(
     else:
         raise ValueError("Unsupported LLM variant")
 
-    if any(variant in model_variant for variant in ["gpt-neo", "gpt", "opt", 'Mistral']):
+    if any(variant in model_variant for variant in ["gpt-neo", "gpt", "opt"]):
         model = AutoModelForCausalLM.from_pretrained(model_name)
     elif "pythia" in model_variant:
         model = GPTNeoXForCausalLM.from_pretrained(
@@ -346,7 +346,7 @@ def init_tok_n_model(
         )
     elif "mamba" in model_variant:
         model = MambaForCausalLM.from_pretrained(model_name)
-    elif "Llama" in model_variant:
+    elif any(variant in model_variant for variant in ["Llama", 'Mistral']):
         model = LlamaForCausalLM.from_pretrained(model_name, token=hf_access_token)
     else:
         raise ValueError("Unsupported LLM variant")
