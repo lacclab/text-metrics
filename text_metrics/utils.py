@@ -1,4 +1,4 @@
-""" This module contains the functions for extracting the metrics from the text. """
+"""This module contains the functions for extracting the metrics from the text."""
 
 import string
 from collections import defaultdict
@@ -203,13 +203,9 @@ def get_parsing_features(
     if mode == "keep-all":
         pass
 
-    assert (
-        pd.__version__ > "2.1.0"
-    ), f"""Your pandas version is {pd.__version__}
+    assert pd.__version__ > "2.1.0", f"""Your pandas version is {pd.__version__}
             Please upgrade pandas to version 2.1.0 or higher to use mode={mode}.
-            (requires pd.DataFrame.map)""".replace(
-        "\n", ""
-    )
+            (requires pd.DataFrame.map)""".replace("\n", "")
     if mode == "keep-first":
         final_res = final_res.map(
             lambda x: x[0] if isinstance(x, list) and len(x) > 0 else x
@@ -324,10 +320,10 @@ def init_tok_n_model(
               Union[AutoModelForCausalLM, GPTNeoXForCausalLM]]: tokenizer, model
     """
     model_variant = model_name.split("/")[-1]
-    if "gpt-neox" in model_variant:
-        tokenizer = GPTNeoXTokenizerFast.from_pretrained(model_name)
-    elif any(variant in model_variant for variant in ["gpt-neo", "gpt", "opt"]):
+    if any(variant in model_variant for variant in ["gpt-neo", "gpt", "opt", "mamba"]):
         tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
+    elif "gpt-neox" in model_variant:
+        tokenizer = GPTNeoXTokenizerFast.from_pretrained(model_name)
     elif "Llama" in model_variant:
         assert (
             hf_access_token is not None
@@ -339,12 +335,12 @@ def init_tok_n_model(
         tokenizer = AutoTokenizer.from_pretrained(
             model_name, revision=pythia_checkpoint, use_fast=True
         )
-    elif "mamba" in model_variant:
-        tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
     else:
         raise ValueError("Unsupported LLM variant")
 
-    if "pythia" in model_variant:
+    if any(variant in model_variant for variant in ["gpt-neo", "gpt", "opt"]):
+        model = AutoModelForCausalLM.from_pretrained(model_name)
+    elif "pythia" in model_variant:
         model = GPTNeoXForCausalLM.from_pretrained(
             model_name, revision=pythia_checkpoint
         )
@@ -353,7 +349,7 @@ def init_tok_n_model(
     elif "Llama" in model_variant:
         model = LlamaForCausalLM.from_pretrained(model_name, token=hf_access_token)
     else:
-        model = AutoModelForCausalLM.from_pretrained(model_name)
+        raise ValueError("Unsupported LLM variant")
 
     model = model.to(device)
 
@@ -367,7 +363,6 @@ def _create_input_tokens(
     is_last_chunk: bool,
     device: str,
 ):
-
     try:
         bos_token_added = tokenizer.bos_token_id
     except AttributeError:
@@ -514,17 +509,6 @@ def surprise(
                 )
 
             start_ind += encodings["offset_mapping"][-stride - 1][1]
-
-    # Make sure the offset mapping are continous
-    assert (
-        sum(
-            [
-                offset_mapping[i][1] != offset_mapping[i + 1][0]
-                for i in range(len(offset_mapping) - 1)
-            ]
-        )
-        == 0
-    )
 
     # The accumulated_tokenized_text is the text we extract surprisal values for
     # It is after removing the BOS/EOS tokens
@@ -835,30 +819,22 @@ def get_metrics(
 if __name__ == "__main__":
     text = (
         """
-    Benjamin Carle is 96.9% made in France, even his underpants and socks. Six Ikea forks, a Chinese guitar and some wall paint stopped him being called 
-    100% French, but nobody is perfect. Carle, 26, decided, in 2013, to see if it was possible to live using only French-made products for ten months 
-    as part of a television documentary. He got the idea after the Minister for Economic Renewal, Arnaud Montebourg, asked the French people to buy 
-    French products. For the experiment, Carle had to give up his smartphone, television, refrigerator (all made in China); his glasses (Italian); 
-    his morning coffee (Guatemalan) and his favourite David Bowie music (British). It is lucky that his girlfriend, Anaïs, and cat, Loon, are both 
-    French, so he didn't have to give them up. 
-    Benjamin Carle is 96.9% made in France, even his underpants and socks. Six Ikea forks, a Chinese guitar and some wall paint stopped him being called 
-    100% French, but nobody is perfect. Carle, 26, decided, in 2013, to see if it was possible to live using only French-made products for ten months 
-    as part of a television documentary. He got the idea after the Minister for Economic Renewal, Arnaud Montebourg, asked the French people to buy 
-    French products. For the experiment, Carle had to give up his smartphone, television, refrigerator (all made in China); his glasses (Italian); 
-    his morning coffee (Guatemalan) and his favourite David Bowie music (British). It is lucky that his girlfriend, Anaïs, and cat, Loon, are both 
-    French, so he didn't have to give them up. 
-    What is true of Carle's Ikea forks?
-    """.replace(
-            "\n", ""
-        )
+    113, 115, 117, and 118 are ... The International Union of Pure and Applied Chemistry (IUPAC) is the global organization that controls
+    chemical names. IUPAC confirmed the new elements on 30 December, 2015 after examining studies dating back to 2004. 
+    The scientists who found them must now think of formal names for the elements, which have the atomic numbers,
+    113, 115, 117, and 118. The atomic number is the number of protons in an element’s atomic nucleus.
+    """.replace("\n", "")
         .replace("\t", "")
         .replace("    ", "")
     )
     model_names = [
-        "state-spaces/mamba-370m-hf",
+        "meta-llama/Meta-Llama-3-8B",
     ]
-    tok, model = init_tok_n_model(model_name=model_names[0], device="cuda:0")
-    input_text = "hello, how are you?"
+    tok, model = init_tok_n_model(
+        model_name=model_names[0],
+        device="cuda:0",
+        hf_access_token="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",
+    )
     surp_res = get_surprisal(
         text=text,
         tokenizer=tok,
