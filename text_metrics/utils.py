@@ -321,11 +321,14 @@ def init_tok_n_model(
     """
     # TODO merge AutoTokenizer/ModelForCausalLM with/without hf_access_token?
     model_variant = model_name.split("/")[-1]
-    if any(variant in model_variant for variant in ["gpt-neo", "gpt", "opt", "mamba"]):
+    if any(
+        variant in model_variant
+        for variant in ["gpt-neo", "gpt", "opt", "mamba", "rwkv"]
+    ):
         tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
     elif "gpt-neox" in model_variant:
         tokenizer = GPTNeoXTokenizerFast.from_pretrained(model_name)
-    elif any(variant in model_variant for variant in ["Llama", 'Mistral', 'gemma']):
+    elif any(variant in model_variant for variant in ["Llama", "Mistral", "gemma"]):
         assert (
             hf_access_token is not None
         ), f"Please provide the HuggingFace access token to load {model_name}"
@@ -339,7 +342,7 @@ def init_tok_n_model(
     else:
         raise ValueError("Unsupported LLM variant")
 
-    if any(variant in model_variant for variant in ["gpt-neo", "gpt", "opt"]):
+    if any(variant in model_variant for variant in ["gpt-neo", "gpt", "opt", "rwkv"]):
         model = AutoModelForCausalLM.from_pretrained(model_name)
     elif "pythia" in model_variant:
         model = GPTNeoXForCausalLM.from_pretrained(
@@ -349,7 +352,7 @@ def init_tok_n_model(
         model = MambaForCausalLM.from_pretrained(model_name)
     elif "Llama" in model_variant:
         model = LlamaForCausalLM.from_pretrained(model_name, token=hf_access_token)
-    elif any(variant in model_variant for variant in ['Mistral', 'gemma']):
+    elif any(variant in model_variant for variant in ["Mistral", "gemma"]):
         model = AutoModelForCausalLM.from_pretrained(model_name, token=hf_access_token)
     else:
         raise ValueError("Unsupported LLM variant")
@@ -831,7 +834,7 @@ if __name__ == "__main__":
         .replace("    ", "")
     )
     model_names = [
-        "meta-llama/Meta-Llama-3-8B",
+        "RWKV/rwkv-4-3b-pile",
     ]
     tok, model = init_tok_n_model(
         model_name=model_names[0],
