@@ -325,7 +325,7 @@ def init_tok_n_model(
         tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
     elif "gpt-neox" in model_variant:
         tokenizer = GPTNeoXTokenizerFast.from_pretrained(model_name)
-    elif any(variant in model_variant for variant in ["Llama", 'Mistral']):
+    elif any(variant in model_variant for variant in ["Llama", 'Mistral', 'gemma']):
         assert (
             hf_access_token is not None
         ), f"Please provide the HuggingFace access token to load {model_name}"
@@ -349,7 +349,7 @@ def init_tok_n_model(
         model = MambaForCausalLM.from_pretrained(model_name)
     elif "Llama" in model_variant:
         model = LlamaForCausalLM.from_pretrained(model_name, token=hf_access_token)
-    elif "Mistral" in model_variant:
+    elif any(variant in model_variant for variant in ['Mistral', 'gemma']):
         model = AutoModelForCausalLM.from_pretrained(model_name, token=hf_access_token)
     else:
         raise ValueError("Unsupported LLM variant")
