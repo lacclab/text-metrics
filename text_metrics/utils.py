@@ -351,7 +351,7 @@ def init_tok_n_model(
     elif "mamba" in model_variant:
         model = MambaForCausalLM.from_pretrained(model_name)
     elif "Llama" in model_variant:
-        model = LlamaForCausalLM.from_pretrained(model_name, token=hf_access_token)
+        model = LlamaForCausalLM.from_pretrained(model_name, token=hf_access_token, device_map='auto')
     elif any(variant in model_variant for variant in ["Mistral", "gemma"]):
         model = AutoModelForCausalLM.from_pretrained(model_name, token=hf_access_token)
     else:
