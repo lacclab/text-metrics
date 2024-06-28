@@ -343,21 +343,21 @@ def init_tok_n_model(
         raise ValueError("Unsupported LLM variant")
 
     if any(variant in model_variant for variant in ["gpt-neo", "gpt", "opt", "rwkv"]):
-        model = AutoModelForCausalLM.from_pretrained(model_name)
+        model = AutoModelForCausalLM.from_pretrained(model_name, device_map='auto')
     elif "pythia" in model_variant:
         model = GPTNeoXForCausalLM.from_pretrained(
             model_name, revision=pythia_checkpoint
-        )
+        , device_map='auto')
     elif "mamba" in model_variant:
-        model = MambaForCausalLM.from_pretrained(model_name)
+        model = MambaForCausalLM.from_pretrained(model_name, device_map='auto')
     elif "Llama" in model_variant:
         model = LlamaForCausalLM.from_pretrained(model_name, token=hf_access_token, device_map='auto')
     elif any(variant in model_variant for variant in ["Mistral", "gemma"]):
-        model = AutoModelForCausalLM.from_pretrained(model_name, token=hf_access_token)
+        model = AutoModelForCausalLM.from_pretrained(model_name, token=hf_access_token, device_map='auto')
     else:
         raise ValueError("Unsupported LLM variant")
 
-    model = model.to(device)
+    # model = model.to(device)
 
     return tokenizer, model
 
