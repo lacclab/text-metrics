@@ -330,7 +330,7 @@ def init_tok_n_model(
     elif "gpt-neox" in model_variant:
         tokenizer = GPTNeoXTokenizerFast.from_pretrained(model_name)
     elif "Eagle" in model_variant: # RWKV
-        tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True, trust_remote_code=True)
+        tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
     elif any(variant in model_variant for variant in ["Llama", "Mistral", "gemma"]):
         assert (
             hf_access_token is not None
