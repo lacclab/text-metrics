@@ -322,14 +322,17 @@ def init_tok_n_model(
 
     # TODO merge AutoTokenizer/ModelForCausalLM with/without hf_access_token?
     model_variant = model_name.split("/")[-1]
+
     if any(
         variant in model_variant
         for variant in ["gpt-neo", "gpt", "opt", "mamba", "rwkv"]
     ):
         tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
+
     elif "gpt-neox" in model_variant:
         tokenizer = GPTNeoXTokenizerFast.from_pretrained(model_name)
-    elif "Eagle" in model_variant: # RWKV
+
+    elif "Eagle" in model_variant:  # RWKV V5
         tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
     elif any(variant in model_variant for variant in ["Llama", "Mistral", "gemma"]):
         assert (
@@ -338,27 +341,49 @@ def init_tok_n_model(
         tokenizer = AutoTokenizer.from_pretrained(
             model_name, use_fast=True, token=hf_access_token
         )
+
     elif "pythia" in model_variant:
         tokenizer = AutoTokenizer.from_pretrained(
             model_name, revision=pythia_checkpoint, use_fast=True
         )
+
     else:
         raise ValueError("Unsupported LLM variant")
 
     if any(variant in model_variant for variant in ["gpt-neo", "gpt", "opt", "rwkv"]):
-        model = AutoModelForCausalLM.from_pretrained(model_name, device_map='auto')
-    elif 'Eagle' in model_variant: # RWKV
-        model = AutoModelForCausalLM.from_pretrained(model_name, device_map='auto', trust_remote_code=True).to(torch.float32)
+        model = AutoModelForCausalLM.from_pretrained(model_name, device_map="auto")
+
+    elif "Eagle" in model_variant:  # RWKV
+        model = AutoModelForCausalLM.from_pretrained(
+            model_name, device_map="auto", trust_remote_code=True
+        ).to(torch.float32)
+
     elif "pythia" in model_variant:
         model = GPTNeoXForCausalLM.from_pretrained(
-            model_name, revision=pythia_checkpoint
-        , device_map='auto')
+            model_name, revision=pythia_checkpoint, device_map="auto"
+        )
+
     elif "mamba" in model_variant:
-        model = MambaForCausalLM.from_pretrained(model_name, device_map='auto')
+        model = MambaForCausalLM.from_pretrained(model_name, device_map="auto")
+
     elif "Llama" in model_variant:
-        model = LlamaForCausalLM.from_pretrained(model_name, token=hf_access_token, device_map='auto')
+        model = LlamaForCausalLM.from_pretrained(
+            model_name, token=hf_access_token, device_map="auto"
+        )
+
+    elif any(variant in model_variant for variant in ["gemma-2"]):
+        model = AutoModelForCausalLM.from_pretrained(
+            model_name,
+            token=hf_access_token,
+            device_map="auto",
+            torch_dtype=torch.bfloat16,
+        )
+
     elif any(variant in model_variant for variant in ["Mistral", "gemma"]):
-        model = AutoModelForCausalLM.from_pretrained(model_name, token=hf_access_token, device_map='auto')
+        model = AutoModelForCausalLM.from_pretrained(
+            model_name, token=hf_access_token, device_map="auto"
+        )
+
     else:
         raise ValueError("Unsupported LLM variant")
 
