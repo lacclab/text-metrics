@@ -328,7 +328,7 @@ def init_tok_n_model(
         tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
     elif "gpt-neox" in model_variant:
         tokenizer = GPTNeoXTokenizerFast.from_pretrained(model_name)
-    elif "RWKV" in model_variant:
+    elif "Eagle" in model_variant: # RWKV
         tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True, trust_remote_code=True)
     elif any(variant in model_variant for variant in ["Llama", "Mistral", "gemma"]):
         assert (
@@ -346,7 +346,7 @@ def init_tok_n_model(
 
     if any(variant in model_variant for variant in ["gpt-neo", "gpt", "opt"]):
         model = AutoModelForCausalLM.from_pretrained(model_name, device_map='auto')
-    elif 'RWKV' in model_variant:
+    elif 'Eagle' in model_variant: # RWKV
         model = AutoModelForCausalLM.from_pretrained(model_name, device_map='auto', trust_remote_code=True).to(torch.float32)
     elif "pythia" in model_variant:
         model = GPTNeoXForCausalLM.from_pretrained(
