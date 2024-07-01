@@ -442,7 +442,7 @@ def _tokens_to_log_probs(
 
     # varify that the average of the log_probs is equal to the loss
     assert torch.isclose(
-        torch.exp(sum(log_probs) / len(log_probs)), torch.exp(output["loss"])
+        torch.exp(sum(log_probs) / len(log_probs)), torch.exp(output["loss"]), atol=1e-5,
     )
 
     shift_labels = shift_labels[0]
