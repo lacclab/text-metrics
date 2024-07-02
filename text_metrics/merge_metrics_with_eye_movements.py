@@ -49,7 +49,8 @@ def create_text_input(
     prefixes_word_indices_ranges = {}
     for prefix_col in prefix_col_names:
         curr_prefix = getattr(row, prefix_col)
-        text_input += curr_prefix + " "
+        if (curr_prefix is not None) and (len(curr_prefix) > 0):
+            text_input += curr_prefix + " "
         curr_prefix_len = len(curr_prefix.split())
         next_w_index = curr_w_index + curr_prefix_len
         prefixes_word_indices_ranges[prefix_col] = (
@@ -237,7 +238,7 @@ def extract_metrics_for_text_df(
 
         # add here new metrics
         merged_df = get_metrics(
-            text=text_input,
+            text=text_input.strip(),
             models=[model],
             tokenizers=[tokenizer],
             model_names=[model_name],
