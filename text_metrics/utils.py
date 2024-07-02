@@ -335,12 +335,11 @@ def init_tok_n_model(
     elif "Eagle" in model_variant:  # RWKV V5
         tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
     elif any(variant in model_variant for variant in ["Llama", "Mistral", "gemma"]):
-        use_fast = "gemma" not in model_variant
         assert (
             hf_access_token is not None
         ), f"Please provide the HuggingFace access token to load {model_name}"
         tokenizer = AutoTokenizer.from_pretrained(
-            model_name, use_fast=use_fast, token=hf_access_token
+            model_name, use_fast=True, token=hf_access_token
         )
 
     elif "pythia" in model_variant:
