@@ -1,4 +1,3 @@
-from pathlib import Path
 import gc
 from functools import partial
 from typing import Union, Tuple, Dict, List, Literal
@@ -126,12 +125,16 @@ def filter_prefix_suffix_metrics(
     Returns:
         pd.DataFrame: merged_df after the prefix and suffix words (rows) were filtered
     """
-    l = [
+    prefixes_suffixes_ranges_lst = [
         (prefix_col_names, keep_prefix_metrics, prefixes_word_indices_ranges),
         (suffix_col_names, keep_suffix_metrics, suffixes_word_indices_ranges),
     ]
 
-    for full_col_names, cols_to_keep, word_indices_ranges in l:
+    for (
+        full_col_names,
+        cols_to_keep,
+        word_indices_ranges,
+    ) in prefixes_suffixes_ranges_lst:
         if cols_to_keep is True:  # keep all columns
             continue
         if cols_to_keep is False:  # remove all columns
@@ -512,6 +515,6 @@ if __name__ == "__main__":
     )
     # Save the enriched data
     et_data_enriched.to_csv(
-        "enriched_eye_tracking_data_Llama_surp.csv",
+        "enriched_eye_tracking_data_enriched_surp.csv",
         index=False,
     )
