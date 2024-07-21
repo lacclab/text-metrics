@@ -365,9 +365,11 @@ def init_tok_n_model(
 
     elif "mamba" in model_variant:
         # print('loaded with bfloat16')
-        model = MambaForCausalLM.from_pretrained(model_name, device_map="auto", 
-                                                #  torch_dtype=torch.bfloat16
-                                                 )
+        model = MambaForCausalLM.from_pretrained(
+            model_name,
+            device_map="auto",
+            #  torch_dtype=torch.bfloat16
+        )
 
     elif "Llama" in model_variant:
         model = LlamaForCausalLM.from_pretrained(
@@ -867,18 +869,19 @@ if __name__ == "__main__":
         .replace("\t", "")
         .replace("    ", "")
     )
-    model_names = [
-        "RWKV/rwkv-4-3b-pile",
-    ]
-    tok, model = init_tok_n_model(
-        model_name=model_names[0],
-        device="cuda:0",
-        hf_access_token="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",
-    )
-    surp_res = get_surprisal(
+    model_names = ["gpt2", "gpt2-medium"]
+
+    models_tokenizers = [init_tok_n_model(model_name) for model_name in model_names]
+    tokenizers = [tokenizer for tokenizer, _ in models_tokenizers]
+    models = [model for _, model in models_tokenizers]
+
+    surp_res = get_metrics(
         text=text,
-        tokenizer=tok,
-        model=model,
-        model_name=model_names[0],
+        models=models,
+        tokenizers=tokenizers,
+        model_names=model_names,
+        parsing_model=spacy.load("en_core_web_sm"),
+        add_parsing_features=False,
     )
-    print(surp_res)
+    
+    print(surp_res.head(10).to_markdown())
