@@ -20,6 +20,7 @@ setup(
         'wordfreq>=3.0.3',
         'numpy>=1.20.3',
         'torch',
-        'spacy'
+        'spacy',
+        'accelerate'
     ]
 )
