@@ -2,7 +2,7 @@ from setuptools import setup
 # TODO improve with https://python-poetry.org/
 setup(
     name='text_metrics',
-    version='1.1.1',
+    version='1.1.2',
     packages=['text_metrics'],
     url='https://github.com/lacclab/text-metrics',
     license='',
@@ -20,6 +20,7 @@ setup(
         'wordfreq>=3.0.3',
         'numpy>=1.20.3',
         'torch',
-        'spacy'
+        'spacy',
+        'accelerate'
     ]
 )
