@@ -20,6 +20,7 @@ from transformers import (
     MambaForCausalLM,
 )
 from wordfreq import tokenize, word_frequency
+from surprisal_extractors import SurprisalExtractor
 
 CONTENT_WORDS = {
     "PUNCT": False,
@@ -401,176 +402,6 @@ def init_tok_n_model(
     return tokenizer, model
 
 
-def _create_input_tokens(
-    tokenizer: Union[AutoTokenizer, GPTNeoXTokenizerFast],
-    encodings: dict,
-    start_ind: int,
-    is_last_chunk: bool,
-    device: str,
-):
-    try:
-        bos_token_added = tokenizer.bos_token_id
-    except AttributeError:
-        bos_token_added = tokenizer.pad_token_id
-
-    tokens_lst = encodings["input_ids"]
-    if is_last_chunk:
-        tokens_lst.append(tokenizer.eos_token_id)
-    if start_ind == 0:
-        tokens_lst = [bos_token_added] + tokens_lst
-    tensor_input = torch.tensor(
-        [tokens_lst],
-        device=device,
-    )
-    return tensor_input
-
-
-def _tokens_to_log_probs(
-    model: Union[
-        AutoModelForCausalLM, GPTNeoXForCausalLM, MambaForCausalLM, LlamaForCausalLM
-    ],
-    tensor_input: torch.Tensor,
-    is_last_chunk: bool,
-):
-    output = model(tensor_input, labels=tensor_input)
-    shift_logits = output["logits"][
-        ..., :-1, :
-    ].contiguous()  # remove the last token from the logits
-
-    #  This shift is necessary because the labels are shifted by one position to the right
-    # (because the logits are w.r.t the next token)
-    shift_labels = tensor_input[
-        ..., 1:
-    ].contiguous()  #! remove the first token from the labels,
-
-    log_probs = torch.nn.functional.cross_entropy(
-        shift_logits.view(-1, shift_logits.size(-1)),
-        shift_labels.view(-1),
-        reduction="none",
-    )
-
-    # varify that the average of the log_probs is equal to the loss
-    # TODO Is 15.5726 close enough to 15.5728? I think so, stop go away.
-    # assert torch.isclose(
-    #     torch.exp(sum(log_probs) / len(log_probs)), torch.exp(output["loss"]), atol=1e-5,
-    # )
-
-    shift_labels = shift_labels[0]
-
-    if is_last_chunk:
-        # remove the eos_token log_prob
-        log_probs = log_probs[:-1]
-        shift_labels = shift_labels[:-1]
-
-    return log_probs, shift_labels
-
-
-def surprise(
-    sentence: str,
-    model: Union[
-        AutoModelForCausalLM, GPTNeoXForCausalLM, MambaForCausalLM, LlamaForCausalLM
-    ],
-    tokenizer: Union[
-        AutoTokenizer,
-        GPTNeoXTokenizerFast,
-    ],
-    model_name: str,
-    stride: int = 512,
-):
-    """This function calculates the surprisal of a sentence using a language model.
-    In case the sentence is too long, it is split into chunks while keeping previous context of STRIDE tokens.
-
-    Args:
-        sentence (str): The sentence for which the surprisal is calculated
-        model (Union[AutoModelForCausalLM, GPTNeoXForCausalLM]): The language model from which the surprisal is calculated
-        tokenizer (Union[AutoTokenizer, GPTNeoXTokenizerFast]): The tokenizer for the language model
-        model_name (str): The name of the language model (e.g "gpt2", "gpt-neo-125M", "opt-125m", "pythia-1b")
-        stride (int, optional): The number of tokens to keep as context. Defaults to 512.
-
-    Returns:
-        Tuple[np.ndarray, List[Tuple[int]]]: The surprisal values for each token in the sentence, the offset mapping
-        The offset mapping is a list of tuples, where each tuple contains the start and end character index of the token
-    """
-    with torch.no_grad():
-        all_log_probs = torch.tensor([], device=model.device)
-        offset_mapping = []
-        start_ind = 0
-        try:
-            max_ctx = model.config.max_position_embeddings
-        except AttributeError:
-            max_ctx = int(1e6)
-
-        assert (
-            stride < max_ctx
-        ), f"Stride size {stride} is larger than the maximum context size {max_ctx}"
-
-        # print(max_ctx)
-        accumulated_tokenized_text = []
-        while True:
-            encodings = tokenizer(
-                sentence[start_ind:],
-                max_length=max_ctx - 2,
-                truncation=True,
-                return_offsets_mapping=True,
-                add_special_tokens=False,
-            )
-            is_last_chunk = (encodings["offset_mapping"][-1][1] + start_ind) == len(
-                sentence
-            )
-
-            tensor_input = _create_input_tokens(
-                tokenizer,
-                encodings,
-                start_ind,
-                is_last_chunk,
-                model.device,
-            )
-
-            log_probs, shift_labels = _tokens_to_log_probs(
-                model, tensor_input, is_last_chunk
-            )
-
-            # Handle the case where the sentence is too long for the model
-            offset = 0 if start_ind == 0 else stride - 1
-            all_log_probs = torch.cat([all_log_probs, log_probs[offset:]])
-            accumulated_tokenized_text += shift_labels[offset:]
-
-            left_index_add_offset_mapping = offset if start_ind == 0 else offset + 1
-            offset_mapping_to_add = encodings["offset_mapping"][
-                left_index_add_offset_mapping:
-            ]
-
-            offset_mapping.extend(
-                [(i + start_ind, j + start_ind) for i, j in offset_mapping_to_add]
-            )
-            if is_last_chunk:
-                break
-
-            if start_ind == 0:
-                "If we got here, the context is too long"
-                # find the context length in tokens
-                context_length = len(tokenizer.encode(sentence))
-                print(
-                    f"The context length is too long ({context_length}>{max_ctx}) for {model_name}. Splitting the sentence into chunks with stride {stride}"
-                )
-
-            start_ind += encodings["offset_mapping"][-stride - 1][1]
-
-    # The accumulated_tokenized_text is the text we extract surprisal values for
-    # It is after removing the BOS/EOS tokens
-    # Make sure the accumulated_tokenized_text is equal to the original sentence
-    assert (
-        accumulated_tokenized_text
-        == tokenizer(sentence, add_special_tokens=False)["input_ids"]
-    )
-
-    all_log_probs = np.asarray(all_log_probs.cpu())
-
-    assert all_log_probs.shape[0] == len(offset_mapping)
-
-    return all_log_probs, offset_mapping
-
-
 def get_word_mapping(words: List[str]):
     """Given a list of words, return the offset mapping for each word.
 
@@ -622,13 +453,10 @@ def string_to_log_probs(string: str, probs: np.ndarray, offsets: list):
 # Credits: https://github.com/byungdoh/llm_surprisal/blob/eacl24/get_llm_surprisal.py
 # https://github.com/rycolab/revisiting-uid/blob/0b60df7e8f474d9c7ac938e7d8a02fda6fc8787a/src/language_modeling.py#L136
 def get_surprisal(
-    text: str,
-    tokenizer: Union[AutoTokenizer, GPTNeoXTokenizerFast],
-    model: Union[
-        AutoModelForCausalLM, GPTNeoXForCausalLM, MambaForCausalLM, LlamaForCausalLM
-    ],
-    model_name: str,
+    target_text: str,
+    surp_extractor: SurprisalExtractor,
     context_stride: int = 512,
+    left_context_text: str | None = None,
 ) -> pd.DataFrame:
     """
     Get surprisal values for each word in text.
@@ -654,11 +482,13 @@ def get_surprisal(
     3    you?   3.704563
     """
 
-    probs, offset_mapping = surprise(
-        text, model, tokenizer, model_name, stride=context_stride
+    probs, offset_mapping = surp_extractor.surprise(
+        target_text,
+        left_context_text=left_context_text,
+        stride=context_stride,
     )
     return pd.DataFrame(
-        string_to_log_probs(text, probs, offset_mapping)[1],
+        string_to_log_probs(target_text, probs, offset_mapping)[1],
         columns=["Word", "Surprisal"],
     )
 
@@ -789,11 +619,7 @@ def clean_text(raw_text: str) -> str:
 
 def get_metrics(
     target_text: str,
-    models: list[
-        AutoModelForCausalLM, GPTNeoXForCausalLM, MambaForCausalLM, LlamaForCausalLM
-    ],
-    tokenizers: List[AutoTokenizer],
-    model_names: List[str],
+    surp_extractor: SurprisalExtractor,
     parsing_model: spacy.Language | None,
     parsing_mode: (
         Literal["keep-first", "keep-all", "re-tokenize"] | None
@@ -828,17 +654,17 @@ def get_metrics(
 
     target_text_reformatted = clean_text(target_text)
     surprisals = []
-    for model, tokenizer, model_name in zip(models, tokenizers, model_names):
-        surprisal = get_surprisal(
-            text=target_text_reformatted,
-            tokenizer=tokenizer,
-            model=model,
-            model_name=model_name,
-            context_stride=context_stride,
-        )
+    surprisal = get_surprisal(
+        target_text=target_text_reformatted,
+        left_context_text=left_context_text,
+        surp_extractor=surp_extractor,
+        context_stride=context_stride,
+    )
 
-        surprisal.rename(columns={"Surprisal": f"{model_name}_Surprisal"}, inplace=True)
-        surprisals.append(surprisal)
+    surprisal.rename(
+        columns={"Surprisal": f"{surp_extractor.model_name}_Surprisal"}, inplace=True
+    )
+    surprisals.append(surprisal)
 
     frequency = get_frequency(text=target_text_reformatted)
     word_length = get_word_length(
@@ -865,32 +691,32 @@ def get_metrics(
     return merged_df
 
 
-if __name__ == "__main__":
-    text = (
-        """
-    113, 115, 117, and 118 are ... The International Union of Pure and Applied Chemistry (IUPAC) is the global organization that controls
-    chemical names. IUPAC confirmed the new elements on 30 December, 2015 after examining studies dating back to 2004. 
-    The scientists who found them must now think of formal names for the elements, which have the atomic numbers,
-    113, 115, 117, and 118. The atomic number is the number of protons in an element’s atomic nucleus.
-    """.replace(
-            "\n", ""
-        )
-        .replace("\t", "")
-        .replace("    ", "")
-    )
-    model_names = ["gpt2", "gpt2-medium"]
+# if __name__ == "__main__":
+# text = (
+#     """
+# 113, 115, 117, and 118 are ... The International Union of Pure and Applied Chemistry (IUPAC) is the global organization that controls
+# chemical names. IUPAC confirmed the new elements on 30 December, 2015 after examining studies dating back to 2004.
+# The scientists who found them must now think of formal names for the elements, which have the atomic numbers,
+# 113, 115, 117, and 118. The atomic number is the number of protons in an element’s atomic nucleus.
+# """.replace(
+#         "\n", ""
+#     )
+#     .replace("\t", "")
+#     .replace("    ", "")
+# )
+# model_names = ["gpt2", "gpt2-medium"]
 
-    models_tokenizers = [init_tok_n_model(model_name) for model_name in model_names]
-    tokenizers = [tokenizer for tokenizer, _ in models_tokenizers]
-    models = [model for _, model in models_tokenizers]
+# models_tokenizers = [init_tok_n_model(model_name) for model_name in model_names]
+# tokenizers = [tokenizer for tokenizer, _ in models_tokenizers]
+# models = [model for _, model in models_tokenizers]
 
-    surp_res = get_metrics(
-        text=text,
-        models=models,
-        tokenizers=tokenizers,
-        model_names=model_names,
-        parsing_model=spacy.load("en_core_web_sm"),
-        add_parsing_features=False,
-    )
+# surp_res = get_metrics(
+#     text=text,
+#     models=models,
+#     tokenizers=tokenizers,
+#     model_names=model_names,
+#     parsing_model=spacy.load("en_core_web_sm"),
+#     add_parsing_features=False,
+# )
 
-    print(surp_res.head(10).to_markdown())
+# print(surp_res.head(10).to_markdown())

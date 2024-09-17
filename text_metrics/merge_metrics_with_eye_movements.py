@@ -13,6 +13,7 @@ import spacy
 from spacy.language import Language
 import torch
 from text_metrics.utils import get_metrics, init_tok_n_model
+from surprisal_extractors import CatCtxLeftSurpExtractor, SurprisalExtractor
 
 
 def create_text_input(
@@ -180,9 +181,7 @@ def extract_metrics_for_text_df(
     text_df: pd.DataFrame,
     text_col_name: str,
     text_key_cols: List[str],
-    model: Union[AutoModelForCausalLM, GPTNeoXForCausalLM],
-    model_name: str,
-    tokenizer: Union[AutoTokenizer, GPTNeoXTokenizerFast],
+    surp_extractor: SurprisalExtractor,
     ordered_prefix_col_names: List[str] = [],
     keep_prefix_metrics: bool | List[str] = False,
     ordered_suffix_col_names: List[str] = [],
@@ -258,9 +257,7 @@ def extract_metrics_for_text_df(
         merged_df = get_metrics(
             target_text=main_text.strip(),
             left_context_text=prefix_text,
-            models=[model],
-            tokenizers=[tokenizer],
-            model_names=[model_name],
+            surp_extractor=surp_extractor,
             **get_metrics_kwargs,
         )
         merged_df.reset_index(inplace=True)
@@ -350,9 +347,9 @@ def extract_metrics_for_text_df_multiple_hf_models(
             print("Extracting Frequency, Length")
         print(f"Extracting surprisal using model: {model_name}")
 
-        tokenizer, model = init_tok_n_model(
+        surp_extractor = CatCtxLeftSurpExtractor(
             model_name=model_name,
-            device=model_target_device,
+            model_target_device=model_target_device,
             hf_access_token=hf_access_token,
         )
 
@@ -363,9 +360,7 @@ def extract_metrics_for_text_df_multiple_hf_models(
             text_df=text_df,
             text_col_name=text_col_name,  # this is after turning all the words into a single string
             text_key_cols=text_key_cols,
-            model=model,
-            model_name=surprisal_extraction_model_names[i],
-            tokenizer=tokenizer,
+            surp_extractor=surp_extractor,
             get_metrics_kwargs=get_metrics_kwargs,
             **extract_metrics_for_text_df_kwargs,
         )
