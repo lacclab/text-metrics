@@ -45,11 +45,14 @@ def create_text_input(
     curr_w_index = 0
 
     # add prefixes and document their word indices
+    prefix_text = ""
     prefixes_word_indices_ranges = {}
     for prefix_col in prefix_col_names:
         curr_prefix = getattr(row, prefix_col)
         if (curr_prefix is not None) and (len(curr_prefix) > 0):
-            text_input += curr_prefix + " "
+            addition_to_acc_text = curr_prefix + " "
+            text_input += addition_to_acc_text
+            prefix_text += addition_to_acc_text
         curr_prefix_len = len(curr_prefix.split())
         next_w_index = curr_w_index + curr_prefix_len
         prefixes_word_indices_ranges[prefix_col] = (
@@ -57,6 +60,8 @@ def create_text_input(
             next_w_index - 1,
         )
         curr_w_index = next_w_index
+
+    prefix_text = prefix_text[:-1]  # remove the last space
 
     row_main_text = getattr(row, text_col_name).strip()
     row_main_text_len = len(row_main_text.split())
@@ -68,16 +73,20 @@ def create_text_input(
     curr_w_index += row_main_text_len - 1
 
     # add suffixes and document their word indices
+    suffix_text = ""
     suffixes_word_indices_ranges = {}
     if len(suffix_col_names) > 0:
         text_input += " "
         for i, suffix_col in enumerate(suffix_col_names):
             curr_suffix_text = getattr(row, suffix_col)
-            text_input += (
+            addition_to_acc_text = (
                 curr_suffix_text + " "
                 if i < len(suffix_col_names) - 1
                 else curr_suffix_text
             )
+            text_input += addition_to_acc_text
+            suffix_text += addition_to_acc_text
+
             curr_suffix_len = len(curr_suffix_text.split())
             suffixes_word_indices_ranges[suffix_col] = (
                 curr_w_index,
@@ -86,7 +95,10 @@ def create_text_input(
             curr_w_index += curr_suffix_len
 
     return (
-        text_input,
+        text_input,  # full text containing prefixes, main text and suffixes
+        row_main_text,
+        prefix_text,
+        suffix_text,
         main_text_word_indices,
         prefixes_word_indices_ranges,
         suffixes_word_indices_ranges,
@@ -228,7 +240,10 @@ def extract_metrics_for_text_df(
     ):
         if len(ordered_prefix_col_names) > 0 or len(ordered_suffix_col_names) > 0:
             (
-                text_input,
+                text_input,  # full text containing prefixes, main text and suffixes
+                main_text,
+                prefix_text,
+                suffix_text,
                 main_text_word_indices,
                 prefixes_word_indices_ranges,
                 suffixes_word_indices_ranges,
@@ -241,7 +256,8 @@ def extract_metrics_for_text_df(
 
         # add here new metrics
         merged_df = get_metrics(
-            text=text_input.strip(),
+            target_text=main_text.strip(),
+            left_context_text=prefix_text,
             models=[model],
             tokenizers=[tokenizer],
             model_names=[model_name],

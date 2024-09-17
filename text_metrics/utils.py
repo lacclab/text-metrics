@@ -203,9 +203,13 @@ def get_parsing_features(
     if mode == "keep-all":
         pass
 
-    assert pd.__version__ > "2.1.0", f"""Your pandas version is {pd.__version__}
+    assert (
+        pd.__version__ > "2.1.0"
+    ), f"""Your pandas version is {pd.__version__}
             Please upgrade pandas to version 2.1.0 or higher to use mode={mode}.
-            (requires pd.DataFrame.map)""".replace("\n", "")
+            (requires pd.DataFrame.map)""".replace(
+        "\n", ""
+    )
     if mode == "keep-first":
         final_res = final_res.map(
             lambda x: x[0] if isinstance(x, list) and len(x) > 0 else x
@@ -784,7 +788,7 @@ def clean_text(raw_text: str) -> str:
 
 
 def get_metrics(
-    text: str,
+    target_text: str,
     models: list[
         AutoModelForCausalLM, GPTNeoXForCausalLM, MambaForCausalLM, LlamaForCausalLM
     ],
@@ -794,6 +798,7 @@ def get_metrics(
     parsing_mode: (
         Literal["keep-first", "keep-all", "re-tokenize"] | None
     ) = "re-tokenize",
+    left_context_text: str | None = None,
     add_parsing_features: bool = True,
     context_stride: int = 512,
 ) -> pd.DataFrame:
@@ -821,11 +826,11 @@ def get_metrics(
     3    you?       3            6.710284           4.541699        3.704563
     """
 
-    text_reformatted = clean_text(text)
+    target_text_reformatted = clean_text(target_text)
     surprisals = []
     for model, tokenizer, model_name in zip(models, tokenizers, model_names):
         surprisal = get_surprisal(
-            text=text_reformatted,
+            text=target_text_reformatted,
             tokenizer=tokenizer,
             model=model,
             model_name=model_name,
@@ -835,8 +840,10 @@ def get_metrics(
         surprisal.rename(columns={"Surprisal": f"{model_name}_Surprisal"}, inplace=True)
         surprisals.append(surprisal)
 
-    frequency = get_frequency(text=text_reformatted)
-    word_length = get_word_length(text=text_reformatted, disregard_punctuation=True)
+    frequency = get_frequency(text=target_text_reformatted)
+    word_length = get_word_length(
+        text=target_text_reformatted, disregard_punctuation=True
+    )
 
     merged_df = word_length.join(frequency.drop("Word", axis=1))
     for surprisal in surprisals:
@@ -851,7 +858,7 @@ def get_metrics(
         ), "Please provide a parsing mode to extract parsing features."
 
         parsing_features = get_parsing_features(
-            text_reformatted, parsing_model, parsing_mode
+            target_text_reformatted, parsing_model, parsing_mode
         )
         merged_df = merged_df.join(parsing_features)
 
@@ -865,7 +872,9 @@ if __name__ == "__main__":
     chemical names. IUPAC confirmed the new elements on 30 December, 2015 after examining studies dating back to 2004. 
     The scientists who found them must now think of formal names for the elements, which have the atomic numbers,
     113, 115, 117, and 118. The atomic number is the number of protons in an element’s atomic nucleus.
-    """.replace("\n", "")
+    """.replace(
+            "\n", ""
+        )
         .replace("\t", "")
         .replace("    ", "")
     )
@@ -883,5 +892,5 @@ if __name__ == "__main__":
         parsing_model=spacy.load("en_core_web_sm"),
         add_parsing_features=False,
     )
-    
+
     print(surp_res.head(10).to_markdown())
