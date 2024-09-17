@@ -1,18 +1,12 @@
 import gc
 from functools import partial
-from typing import Union, Tuple, Dict, List, Literal
+from typing import Tuple, Dict, List, Literal
 import pandas as pd
 import tqdm
-from transformers import (
-    AutoTokenizer,
-    AutoModelForCausalLM,
-    GPTNeoXTokenizerFast,
-    GPTNeoXForCausalLM,
-)
 import spacy
 from spacy.language import Language
 import torch
-from text_metrics.utils import get_metrics, init_tok_n_model
+from text_metrics.utils import get_metrics
 from surprisal_extractors import CatCtxLeftSurpExtractor, SurprisalExtractor
 
 
@@ -384,7 +378,7 @@ def extract_metrics_for_text_df_multiple_hf_models(
                 validate="one_to_one",
             )
         # move the model back to the cpu and delete it to free up space
-        del model
+        del surp_extractor
         gc.collect()
         torch.cuda.empty_cache()
 

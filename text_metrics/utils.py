@@ -2,7 +2,7 @@
 
 import string
 from collections import defaultdict
-from typing import List, Literal, Union
+from typing import List, Literal
 
 import numpy as np
 import pandas as pd
