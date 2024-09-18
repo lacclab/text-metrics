@@ -41,7 +41,7 @@ class BaseSurprisalExtractor:
         overlap_size: int = 512,
         allow_overlap: bool = False,
     ) -> Tuple[np.ndarray, List[Tuple[int]]]:
-        NotImplementedError
+        raise NotImplementedError
 
     def _create_input_tokens(
         self,
@@ -187,7 +187,9 @@ class BaseSurprisalExtractor:
     ) -> Tuple[np.ndarray, List[Tuple[int]]]:
         if allow_overlap:
             assert overlap_size is not None, "overlap_size must be specified"
-        full_context = target_text
+        full_context = (
+            " " + target_text
+        )  # even if there isn't left context, we add a space at the beginning to make sure this word is tokenized as the same token always
 
         with torch.no_grad():
             try:
@@ -218,103 +220,6 @@ class BaseSurprisalExtractor:
         assert all_log_probs.shape[0] == len(offset_mapping)
 
         return all_log_probs, offset_mapping
-
-
-# class SoftCatCtxSurpExtractor(SurprisalExtractor):
-#     def __init__(
-#         self,
-#         model_name: str,
-#         model_target_device: str = "cpu",
-#         pythia_checkpoint: str | None = "step143000",
-#         hf_access_token: str | None = None,
-#     ):
-#         super().__init__(
-#             model_name, model_target_device, pythia_checkpoint, hf_access_token
-#         )
-
-#     def _get_embedded_context(
-#         self, left_context_text: str, device: str
-#     ) -> torch.Tensor:
-#         # """Helper method to embed the left context using the model."""
-#         # with torch.no_grad():
-#         #     # Tokenize the left context
-#         #     left_context_tokens = self.tokenizer(
-#         #         left_context_text, return_tensors="pt", truncation=True
-#         #     ).to(device)
-
-#         #     # Get the hidden state for the left context from the model
-#         #     left_context_output = self.model(**left_context_tokens, output_hidden_states=True)
-
-#         #     # Get the hidden states for the last layer
-#         #     hidden_states = left_context_output.hidden_states[-1]  # Shape: (batch_size, seq_len, hidden_dim)
-
-#         #     # Aggregate hidden states by averaging over the sequence length
-#         #     left_context_embedding = torch.mean(hidden_states, dim=1)  # Shape: (batch_size, hidden_dim)
-
-#         # return left_context_embedding
-#         raise NotImplementedError
-
-#     def _add_left_context_to_target_embds(self, target_embds, left_context_text):
-
-
-#     def _create_embedding_level_input(self, target_text, ):
-#         # Tokenize the target text
-#         target_encodings = self.tokenizer(
-#             target_text, return_tensors="pt", truncation=True
-#         ).to(self.model.device)
-
-#         # Embed the left context (if provided)
-#         if left_context_text is not None:
-#             left_context_embedding = self._get_embedded_context(
-#                 left_context_text, self.model.device
-#             )
-#         else:
-#             # If no left context is provided, use zeros
-#             hidden_size = self.model.config.hidden_size
-
-
-#         # Get the embeddings for the target text
-#         target_word_embeddings = self.model.get_input_embeddings(
-#             target_encodings["input_ids"]
-#         )
-#         # Concatenate the left context embedding to each token in the target embeddings
-#         repeated_context = left_context_embedding.unsqueeze(1).expand_as(
-#             target_word_embeddings
-#         )
-#         full_embeddings = torch.cat(
-#             (repeated_context, target_word_embeddings), dim=1
-#         )  # Concatenate at embedding level
-
-#     def surprise(
-#         self,
-#         target_text: str,
-#         left_context_text: str | None = None,
-#         overlap_size: int | None = None,
-#         allow_overlap: bool = False,
-#     ) -> Tuple[np.ndarray, List[Tuple[int]]]:
-#         """Calculate the surprisal with the left context embedded and concatenated at the embedding level."""
-#         if allow_overlap:
-#             assert overlap_size is not None, "overlap_size must be specified"
-
-#         with torch.no_grad():
-
-#             # Calculate log probabilities based on the modified embeddings
-#             output = self.model(
-#                 inputs_embeds=full_embeddings, labels=target_encodings["input_ids"]
-#             )
-#             # remove the first token from the logits
-
-#             log_probs = torch.nn.functional.cross_entropy(
-#                 output["logits"].view(-1, output["logits"].size(-1)),
-#                 target_encodings["input_ids"].view(-1),
-#                 reduction="none",
-#             )
-
-#         # Convert to numpy for return
-#         log_probs = log_probs.cpu().numpy()
-#         offset_mapping = target_encodings["offset_mapping"].cpu().tolist()
-
-#         return log_probs, offset_mapping
 
 
 class SoftCatCtxSentAggSurpExtractor(BaseSurprisalExtractor):
