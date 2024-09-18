@@ -1,14 +1,12 @@
 {
-    "python.testing.pytestArgs": [
-        "./text_metrics/tests"
-    ],
-    "python.testing.unittestEnabled": true,
-    "python.testing.pytestEnabled": false,
-    "python.testing.unittestArgs": [
-        "-v",
-        "-s",
-        "./tests",
-        "-p",
-        "*_test.py"
-    ]
+  "python.testing.unittestEnabled": true,
+  "python.testing.pytestEnabled": false,
+  "python.testing.unittestArgs": [
+    "-v",
+    "-s",
+    "./text_metrics",
+    "-p",
+    "test_*.py"
+  ],
+  "python.testing.pytestArgs": ["text_metrics"]
 }
