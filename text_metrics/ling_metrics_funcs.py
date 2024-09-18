@@ -48,10 +48,19 @@ def get_surprisal(
         left_context_text=left_context_text,
         overlap_size=overlap_size,
     )
-    return pd.DataFrame(
+
+    dataframe_probs = pd.DataFrame(
         string_to_log_probs(target_text, probs, offset_mapping)[1],
         columns=["Word", "Surprisal"],
     )
+    # assert there are no NaN values
+    assert (
+        not dataframe_probs.isnull().values.any()
+    ), "There are NaN values in the dataframe."
+    assert len(dataframe_probs) == len(
+        target_text.split()
+    ), "The number of words in the surprisal dataframe does not match the number of words in the text."
+    return dataframe_probs
 
 
 def get_frequency(text: str) -> pd.DataFrame:
