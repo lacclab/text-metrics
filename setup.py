@@ -4,7 +4,7 @@ from setuptools import setup
 setup(
     name="text_metrics",
     version="1.1.2",
-    packages=["text_metrics"],
+    packages=["text_metrics", "text_metrics.surprisal_extractors"],
     url="https://github.com/lacclab/text-metrics",
     license="",
     author="Omer Shubi",
