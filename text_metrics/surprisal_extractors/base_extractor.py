@@ -12,7 +12,7 @@ class ProcessingMode(Enum):
     SOFT_CONCAT_CTX_SENT_AGG = "SOFT_CONCAT_CTX_SENT_AGG"
 
 
-class SurprisalExtractor:
+class BaseSurprisalExtractor:
     def __init__(
         self,
         model_name: str,
@@ -220,8 +220,6 @@ class SurprisalExtractor:
         return all_log_probs, offset_mapping
 
 
-
-
 # class SoftCatCtxSurpExtractor(SurprisalExtractor):
 #     def __init__(
 #         self,
@@ -319,7 +317,7 @@ class SurprisalExtractor:
 #         return log_probs, offset_mapping
 
 
-class SoftCatCtxSentAggSurpExtractor(SurprisalExtractor):
+class SoftCatCtxSentAggSurpExtractor(BaseSurprisalExtractor):
     def process(self, data):
         return f"Processing data in Mode 3: {data}"
 

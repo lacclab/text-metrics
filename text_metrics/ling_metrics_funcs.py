@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import pkg_resources
 import spacy
-from text_metrics.surprisal_extractors.SurprisalExtractor import SurprisalExtractor
+from text_metrics.surprisal_extractors.base_extractor import BaseSurprisalExtractor
 
 from utils import get_parsing_features, string_to_log_probs, clean_text
 from wordfreq import tokenize, word_frequency
@@ -15,7 +15,7 @@ from wordfreq import tokenize, word_frequency
 # https://github.com/rycolab/revisiting-uid/blob/0b60df7e8f474d9c7ac938e7d8a02fda6fc8787a/src/language_modeling.py#L136
 def get_surprisal(
     target_text: str,
-    surp_extractor: SurprisalExtractor,
+    surp_extractor: BaseSurprisalExtractor,
     overlap_size: int = 512,
     left_context_text: str | None = None,
 ) -> pd.DataFrame:
@@ -161,7 +161,7 @@ def get_word_length(text: str, disregard_punctuation: bool = True) -> pd.DataFra
 
 def get_metrics(
     target_text: str,
-    surp_extractor: SurprisalExtractor,
+    surp_extractor: BaseSurprisalExtractor,
     parsing_model: spacy.Language | None,
     parsing_mode: (
         Literal["keep-first", "keep-all", "re-tokenize"] | None

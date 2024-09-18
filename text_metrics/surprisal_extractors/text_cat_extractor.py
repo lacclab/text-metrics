@@ -1,12 +1,12 @@
 # Define classes for each mode
-from SurprisalExtractor import SurprisalExtractor
+from text_metrics.surprisal_extractors.base_extractor import BaseSurprisalExtractor
 from typing import List, Tuple
 import numpy as np
 from utils import remove_redundant_left_context
 import torch
 
 
-class CatCtxLeftSurpExtractor(SurprisalExtractor):
+class CatCtxLeftSurpExtractor(BaseSurprisalExtractor):
     def __init__(
         self,
         model_name: str,

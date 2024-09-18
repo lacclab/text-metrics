@@ -7,8 +7,8 @@ import spacy
 from spacy.language import Language
 import torch
 from ling_metrics_funcs import get_metrics
-from text_metrics.surprisal_extractors.SurprisalExtractor import SurprisalExtractor
-from text_metrics.surprisal_extractors.CatCtxLeftSurpExtractor import (
+from text_metrics.surprisal_extractors.base_extractor import BaseSurprisalExtractor
+from text_metrics.surprisal_extractors.text_cat_extractor import (
     CatCtxLeftSurpExtractor,
 )
 
@@ -178,7 +178,7 @@ def extract_metrics_for_text_df(
     text_df: pd.DataFrame,
     text_col_name: str,
     text_key_cols: List[str],
-    surp_extractor: SurprisalExtractor,
+    surp_extractor: BaseSurprisalExtractor,
     ordered_prefix_col_names: List[str] = [],
     keep_prefix_metrics: bool | List[str] = False,
     ordered_suffix_col_names: List[str] = [],

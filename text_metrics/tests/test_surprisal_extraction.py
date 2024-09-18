@@ -1,7 +1,7 @@
 import unittest
 from text_metrics.utils import clean_text
 from text_metrics.ling_metrics_funcs import get_surprisal
-from text_metrics.surprisal_extractors.SurprisalExtractor import CatCtxLeftSurpExtractor
+from text_metrics.surprisal_extractors.base_extractor import CatCtxLeftSurpExtractor
 
 
 class TestSurprisalExtraction(unittest.TestCase):
