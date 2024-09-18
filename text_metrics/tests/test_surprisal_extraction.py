@@ -1,5 +1,5 @@
 import unittest
-from text_metrics.utils import init_tok_n_model, clean_text
+from text_metrics.utils import clean_text
 from text_metrics.ling_metrics_funcs import get_surprisal
 from text_metrics.surprisal_extractors import CatCtxLeftSurpExtractor
 

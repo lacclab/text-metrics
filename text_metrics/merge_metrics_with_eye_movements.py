@@ -256,9 +256,6 @@ def extract_metrics_for_text_df(
         )
         merged_df.reset_index(inplace=True)
 
-        # if rebase_index_in_main_text and len(ordered_prefix_col_names) > 0:
-        #     merged_df["index"] = merged_df["index"] - main_text_word_indices[0]
-
         merged_df[text_key_cols] = [getattr(row, key_col) for key_col in text_key_cols]
 
         metric_dfs.append(merged_df)
