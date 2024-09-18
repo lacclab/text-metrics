@@ -6,7 +6,7 @@ import tqdm
 import spacy
 from spacy.language import Language
 import torch
-from text_metrics.utils import get_metrics
+from ling_metrics_funcs import get_metrics
 from surprisal_extractors import CatCtxLeftSurpExtractor, SurprisalExtractor
 
 
@@ -244,8 +244,8 @@ def extract_metrics_for_text_df(
                 row, text_col_name, ordered_prefix_col_names, ordered_suffix_col_names
             )
         else:
-            text_input = getattr(row, text_col_name).strip()
-            main_text_word_indices = (0, len(text_input.split()) - 1)
+            main_text = getattr(row, text_col_name).strip()
+            prefix_text = ""
 
         # add here new metrics
         merged_df = get_metrics(
@@ -256,21 +256,8 @@ def extract_metrics_for_text_df(
         )
         merged_df.reset_index(inplace=True)
 
-        # in merged df, remove the prefixes and suffixes that are
-        # not in the keep_prefix_metrics and keep_suffix_metrics
-        if len(ordered_prefix_col_names) > 0 or len(ordered_suffix_col_names) > 0:
-            merged_df = filter_prefix_suffix_metrics(
-                merged_df,
-                ordered_prefix_col_names,
-                keep_prefix_metrics,
-                ordered_suffix_col_names,
-                keep_suffix_metrics,
-                prefixes_word_indices_ranges,
-                suffixes_word_indices_ranges,
-            )
-
-        if rebase_index_in_main_text and len(ordered_prefix_col_names) > 0:
-            merged_df["index"] = merged_df["index"] - main_text_word_indices[0]
+        # if rebase_index_in_main_text and len(ordered_prefix_col_names) > 0:
+        #     merged_df["index"] = merged_df["index"] - main_text_word_indices[0]
 
         merged_df[text_key_cols] = [getattr(row, key_col) for key_col in text_key_cols]
 
@@ -516,7 +503,6 @@ if __name__ == "__main__":
         parsing_mode="re-tokenize",
         add_question_in_prompt=True,
         model_target_device="cuda:1",
-        hf_access_token="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",
     )
     # Save the enriched data
     et_data_enriched.to_csv(
