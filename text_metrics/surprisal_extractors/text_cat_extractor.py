@@ -20,22 +20,26 @@ class CatCtxLeftSurpExtractor(BaseSurprisalExtractor):
 
     def _ommit_left_ctx_from_surp_res(
         self,
-        target_text: str,
+        target_text_char_onset: int,
         all_log_probs: torch.Tensor,
         offset_mapping: List[Tuple[int]],
     ):
         # cut all_log_probs and offset_mapping to the length of the target_text ONLY (without the left context)
         # notice that accumulated_tokenized_text contains both the left context and the target_text
         # so we need to remove the left context from it
-        target_text_len = len(self.tokenizer(target_text)["input_ids"])
+
+        # in offset_mapping, find the index of the first token of the target_text (the first tuple with the first element equal to target_text_char_onset)
+        offset_mapping_first_index = [
+            i for i, (start, end) in enumerate(offset_mapping) if start == target_text_char_onset - 1 #! -1 because the first token includes the space
+        ][0]
+
         target_text_log_probs = all_log_probs[
-            -target_text_len + 1 :
+            offset_mapping_first_index:
         ]  # because we concatenate the left context to the target text
 
-        target_text_offset_mapping = offset_mapping[-target_text_len + 1 :]
-        offset_mapping_onset = target_text_offset_mapping[0][0]
+        target_text_offset_mapping = offset_mapping[offset_mapping_first_index:]
         target_text_offset_mapping = [
-            (i - offset_mapping_onset, j - offset_mapping_onset)
+            (i - target_text_char_onset + 1, j - target_text_char_onset + 1)
             for i, j in target_text_offset_mapping
         ]
 
@@ -107,6 +111,7 @@ class CatCtxLeftSurpExtractor(BaseSurprisalExtractor):
             )
 
             full_context = left_context_text + " " + target_text
+            target_text_char_onset = len(full_context) - len(target_text)
 
             assert (
                 overlap_size < max_ctx
@@ -132,7 +137,7 @@ class CatCtxLeftSurpExtractor(BaseSurprisalExtractor):
 
         target_text_log_probs, target_text_offset_mapping = (
             self._ommit_left_ctx_from_surp_res(
-                target_text, all_log_probs, offset_mapping
+                target_text_char_onset, all_log_probs, offset_mapping
             )
         )
 
