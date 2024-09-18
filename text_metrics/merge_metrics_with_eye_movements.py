@@ -7,10 +7,9 @@ import spacy
 from spacy.language import Language
 import torch
 from ling_metrics_funcs import get_metrics
-from text_metrics.surprisal_extractors.base_extractor import BaseSurprisalExtractor
-from text_metrics.surprisal_extractors.text_cat_extractor import (
-    CatCtxLeftSurpExtractor,
-)
+from surprisal_extractors import base_extractor
+from surprisal_extractors import soft_cat_extractors
+from surprisal_extractors import text_cat_extractor
 
 
 def create_text_input(
@@ -178,7 +177,7 @@ def extract_metrics_for_text_df(
     text_df: pd.DataFrame,
     text_col_name: str,
     text_key_cols: List[str],
-    surp_extractor: BaseSurprisalExtractor,
+    surp_extractor: base_extractor.BaseSurprisalExtractor,
     ordered_prefix_col_names: List[str] = [],
     keep_prefix_metrics: bool | List[str] = False,
     ordered_suffix_col_names: List[str] = [],
@@ -328,11 +327,17 @@ def extract_metrics_for_text_df_multiple_hf_models(
             print("Extracting Frequency, Length")
         print(f"Extracting surprisal using model: {model_name}")
 
-        surp_extractor = CatCtxLeftSurpExtractor(
+        surp_extractor = soft_cat_extractors.SoftCatWholeCtxSurpExtractor(
             model_name=model_name,
             model_target_device=model_target_device,
             hf_access_token=hf_access_token,
         )
+
+        # surp_extractor = text_cat_extractor.CatCtxLeftSurpExtractor(
+        #     model_name=model_name,
+        #     model_target_device=model_target_device,
+        #     hf_access_token=hf_access_token,
+        # )
 
         get_metrics_kwargs["add_parsing_features"] = (
             True if metric_df is None and add_parsing_features else False
