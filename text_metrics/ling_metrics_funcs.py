@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import pkg_resources
 import spacy
-from surprisal_extractors import SurprisalExtractor
+from text_metrics.surprisal_extractors.SurprisalExtractor import SurprisalExtractor
 
 from utils import get_parsing_features, string_to_log_probs, clean_text
 from wordfreq import tokenize, word_frequency

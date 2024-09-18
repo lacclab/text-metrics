@@ -7,7 +7,10 @@ import spacy
 from spacy.language import Language
 import torch
 from ling_metrics_funcs import get_metrics
-from surprisal_extractors import CatCtxLeftSurpExtractor, SurprisalExtractor
+from text_metrics.surprisal_extractors.SurprisalExtractor import SurprisalExtractor
+from text_metrics.surprisal_extractors.CatCtxLeftSurpExtractor import (
+    CatCtxLeftSurpExtractor,
+)
 
 
 def create_text_input(
