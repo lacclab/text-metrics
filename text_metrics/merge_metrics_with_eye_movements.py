@@ -327,7 +327,7 @@ def extract_metrics_for_text_df_multiple_hf_models(
             print("Extracting Frequency, Length")
         print(f"Extracting surprisal using model: {model_name}")
 
-        surp_extractor = soft_cat_extractors.SoftCatWholeCtxSurpExtractor(
+        surp_extractor = soft_cat_extractors.SoftCatSentencesSurpExtractor(
             model_name=model_name,
             model_target_device=model_target_device,
             hf_access_token=hf_access_token,

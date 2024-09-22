@@ -1,7 +1,9 @@
-from surprisal_extractors.base_extractor import BaseSurprisalExtractor
+import re
 from typing import List, Tuple
-import torch
+
 import numpy as np
+import torch
+from surprisal_extractors.base_extractor import BaseSurprisalExtractor
 
 
 class SoftCatCtxSurpExtractor(BaseSurprisalExtractor):
@@ -169,5 +171,50 @@ class SoftCatWholeCtxSurpExtractor(SoftCatCtxSurpExtractor):
             left_context_embedding = torch.mean(
                 hidden_states, dim=1
             )  # Shape: (batch_size, hidden_dim)
+
+        return left_context_embedding
+
+
+class SoftCatSentencesSurpExtractor(SoftCatCtxSurpExtractor):
+    def __init__(
+        self,
+        model_name: str,
+        model_target_device: str = "cpu",
+        pythia_checkpoint: str | None = "step143000",
+        hf_access_token: str | None = None,
+    ):
+        super().__init__(
+            model_name, model_target_device, pythia_checkpoint, hf_access_token
+        )
+
+    def _get_embedded_left_context(self, left_context_text: str, device: str):
+        """Helper method to embed the left context using the model."""
+        with torch.no_grad():
+            acc_sentence_embedding = []
+
+            for sentence in re.split(r"[.!?]", left_context_text):
+                # Tokenize the left context
+                left_context_tokens = self.tokenizer(
+                    sentence, return_tensors="pt", truncation=True
+                ).to(device)
+
+                # Get the hidden state for the left context from the model
+                left_context_output = self.model(
+                    **left_context_tokens, output_hidden_states=True
+                )
+
+                # Get the hidden states for the last layer
+                hidden_states = left_context_output.hidden_states[
+                    -1
+                ]  # Shape: (batch_size, seq_len, hidden_dim)
+
+                # Aggregate hidden states by averaging over the sequence length
+                left_context_embedding = torch.mean(
+                    hidden_states, dim=1
+                )  # Shape: (batch_size, hidden_dim)
+
+                acc_sentence_embedding.append(left_context_embedding.squeeze(0))
+
+        left_context_embedding = torch.stack(acc_sentence_embedding, dim=0)
 
         return left_context_embedding
