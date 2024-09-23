@@ -22,11 +22,11 @@ dependencies:
   - transformers=4.40.1
   - pip
   - spacy
-  # - r-essentials
+  - ruff
   # - r-gratia
   - pip:
       # - dvc
-      - git+https://github.com/lacclab/text-metrics.git
+      # - git+https://github.com/lacclab/text-metrics.git
       # - dvclive
       # - rpy2
       - -e . # For development purposes
