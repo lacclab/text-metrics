@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import torch
 from spacy.language import Language
+import spacy
 from torch.nn.functional import log_softmax
 from transformers import (
     AutoModelForCausalLM,
@@ -216,13 +217,9 @@ def get_parsing_features(
     if mode == "keep-all":
         pass
 
-    assert (
-        pd.__version__ > "2.1.0"
-    ), f"""Your pandas version is {pd.__version__}
+    assert pd.__version__ > "2.1.0", f"""Your pandas version is {pd.__version__}
             Please upgrade pandas to version 2.1.0 or higher to use mode={mode}.
-            (requires pd.DataFrame.map)""".replace(
-        "\n", ""
-    )
+            (requires pd.DataFrame.map)""".replace("\n", "")
     if mode == "keep-first":
         final_res = final_res.map(
             lambda x: x[0] if isinstance(x, list) and len(x) > 0 else x
@@ -298,6 +295,30 @@ def _join_surp(words: list[str], tok_surps: list[tuple[str, float]]):
     assert word_ind == len(words)
     assert len(out) == len(words)
     return out
+
+
+# Function to split text into sentences
+def split_text_into_sentences(text, spacy_module):
+    # Process the text using the nlp object
+    # Load the English model in spacy
+    doc = spacy_module(text)
+
+    # Extract and return the sentences
+    sentences = [sent.text for sent in doc.sents]
+    return sentences
+
+
+def break_down_p_id(et_data_enriched: pd.DataFrame):
+    # "unique_paragraph_id" -> "batch", 'article_id', 'level', 'paragraph_id' (sepated by "_")
+    col_names = ["batch", "article_id", "level", "paragraph_id"]
+    for i, name in enumerate(col_names):
+        et_data_enriched[name] = et_data_enriched["unique_paragraph_id"].apply(
+            lambda x: x.split("_")[i]
+        )
+        if name != "level":
+            et_data_enriched[name] = et_data_enriched[name].astype(int)
+
+    return et_data_enriched
 
 
 def init_tok_n_model(
@@ -460,6 +481,7 @@ def string_to_log_probs(string: str, probs: np.ndarray, offsets: list):
 
     zipped_surp = list(zip(words, agg_log_probs))
     return agg_log_probs, zipped_surp
+
 
 def remove_redundant_left_context(
     tokenizer,

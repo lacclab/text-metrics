@@ -6,10 +6,10 @@ import tqdm
 import spacy
 from spacy.language import Language
 import torch
+from utils import break_down_p_id
 from ling_metrics_funcs import get_metrics
 from surprisal_extractors import base_extractor
-from surprisal_extractors import soft_cat_extractors
-from surprisal_extractors import text_cat_extractor
+from surprisal_extractors import extractor_switch
 
 
 def create_text_input(
@@ -270,6 +270,7 @@ def extract_metrics_for_text_df_multiple_hf_models(
     text_col_name: str,
     text_key_cols: List[str],
     surprisal_extraction_model_names: List[str],
+    surp_extractor_type: extractor_switch.SurpExtractorType = extractor_switch.SurpExtractorType.CAT_CTX_LEFT,
     add_parsing_features: bool = True,
     parsing_mode: (
         Literal["keep-first", "keep-all", "re-tokenize"] | None
@@ -327,17 +328,12 @@ def extract_metrics_for_text_df_multiple_hf_models(
             print("Extracting Frequency, Length")
         print(f"Extracting surprisal using model: {model_name}")
 
-        surp_extractor = soft_cat_extractors.SoftCatSentencesSurpExtractor(
+        surp_extractor = extractor_switch.get_surp_extractor(
+            extractor_type=surp_extractor_type,
             model_name=model_name,
             model_target_device=model_target_device,
             hf_access_token=hf_access_token,
         )
-
-        # surp_extractor = text_cat_extractor.CatCtxLeftSurpExtractor(
-        #     model_name=model_name,
-        #     model_target_device=model_target_device,
-        #     hf_access_token=hf_access_token,
-        # )
 
         get_metrics_kwargs["add_parsing_features"] = (
             True if metric_df is None and add_parsing_features else False
@@ -409,7 +405,8 @@ def add_metrics_to_eye_tracking(
     without_duplicates = eye_tracking_data[
         [
             "paragraph_id",
-            "article_title",
+            "batch",
+            "article_id",
             "level",
             "IA_ID",
             "has_preview",
@@ -418,9 +415,9 @@ def add_metrics_to_eye_tracking(
         ]
     ].drop_duplicates()
 
-    # Group by paragraph_id, article_title, level and join all IA_LABELs (words)
+    # Group by paragraph_id, batch, article_id, level and join all IA_LABELs (words)
     text_from_et = without_duplicates.groupby(
-        ["paragraph_id", "article_title", "level", "has_preview", "question"]
+        ["paragraph_id", "batch", "article_id", "level", "has_preview", "question"]
     )["IA_LABEL"].apply(list)
 
     text_from_et = text_from_et.apply(lambda text: " ".join(text))
@@ -428,7 +425,8 @@ def add_metrics_to_eye_tracking(
     spacy_model = spacy.load(spacy_model_name)
     text_key_cols = [
         "paragraph_id",
-        "article_title",
+        "batch",
+        "article_id",
         "level",
         "has_preview",
         "question",
@@ -439,6 +437,7 @@ def add_metrics_to_eye_tracking(
         text_col_name="IA_LABEL",
         text_key_cols=text_key_cols,
         surprisal_extraction_model_names=surprisal_extraction_model_names,
+        surp_extractor_type=extractor_switch.SurpExtractorType.SOFT_CAT_WHOLE_CTX_LEFT,
         parsing_mode=parsing_mode,
         spacy_model=spacy_model,
         model_target_device=model_target_device,
@@ -486,7 +485,8 @@ def add_metrics_to_eye_tracking(
         metric_df,
         how="left",
         on=[
-            "article_title",
+            "batch",
+            "article_id",
             "has_preview",
             "question",
             "paragraph_id",
@@ -500,7 +500,13 @@ def add_metrics_to_eye_tracking(
 
 
 if __name__ == "__main__":
-    et_data = pd.read_csv("intermediate_eye_tracking_data.csv")
+    et_data = pd.read_csv(
+        "/data/home/shared/onestop/processed/ia_data_enriched_360_17092024.csv",
+        engine="pyarrow",
+    )
+    et_data = break_down_p_id(et_data)
+    et_data = et_data[et_data["batch"] == 1]
+
     et_data_enriched = add_metrics_to_eye_tracking(
         eye_tracking_data=et_data,
         surprisal_extraction_model_names=["gpt2", "gpt2-medium"],
@@ -511,6 +517,6 @@ if __name__ == "__main__":
     )
     # Save the enriched data
     et_data_enriched.to_csv(
-        "enriched_eye_tracking_data_enriched_surp.csv",
+        "enriched_eye_tracking_data_enriched_surp_WholeSoftCat.csv",
         index=False,
     )

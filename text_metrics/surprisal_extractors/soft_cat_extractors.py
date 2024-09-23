@@ -1,9 +1,10 @@
-import re
+import spacy
 from typing import List, Tuple
 
 import numpy as np
 import torch
 from surprisal_extractors.base_extractor import BaseSurprisalExtractor
+from utils import split_text_into_sentences
 
 
 class SoftCatCtxSurpExtractor(BaseSurprisalExtractor):
@@ -116,7 +117,7 @@ class SoftCatCtxSurpExtractor(BaseSurprisalExtractor):
             return self.surprise_target_only(target_text)
 
         with torch.no_grad():
-            target_text = " " + target_text
+            target_text = " " + target_text.strip()
             target_encodings, target_labels, target_offset_mappings = (
                 self._eoncode_target_text(target_text)
             )
@@ -176,6 +177,7 @@ class SoftCatWholeCtxSurpExtractor(SoftCatCtxSurpExtractor):
 
 
 class SoftCatSentencesSurpExtractor(SoftCatCtxSurpExtractor):
+    #! This doesn't work
     def __init__(
         self,
         model_name: str,
@@ -186,13 +188,15 @@ class SoftCatSentencesSurpExtractor(SoftCatCtxSurpExtractor):
         super().__init__(
             model_name, model_target_device, pythia_checkpoint, hf_access_token
         )
+        self.spacy_module = spacy.load("en_core_web_sm")
 
     def _get_embedded_left_context(self, left_context_text: str, device: str):
         """Helper method to embed the left context using the model."""
         with torch.no_grad():
             acc_sentence_embedding = []
 
-            for sentence in re.split(r"[.!?]", left_context_text):
+            sentences = split_text_into_sentences(left_context_text, self.spacy_module)
+            for sentence in sentences:
                 # Tokenize the left context
                 left_context_tokens = self.tokenizer(
                     sentence, return_tensors="pt", truncation=True
