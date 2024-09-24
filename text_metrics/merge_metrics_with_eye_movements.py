@@ -6,10 +6,10 @@ import tqdm
 import spacy
 from spacy.language import Language
 import torch
-from utils import break_down_p_id, add_col_not_num_or_punc
-from ling_metrics_funcs import get_metrics
-from surprisal_extractors import base_extractor
-from surprisal_extractors import extractor_switch
+from text_metrics.utils import break_down_p_id, add_col_not_num_or_punc
+from text_metrics.ling_metrics_funcs import get_metrics
+from text_metrics.surprisal_extractors import base_extractor
+from text_metrics.surprisal_extractors import extractor_switch
 
 
 def create_text_input(

@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 import torch
 from spacy.language import Language
-import spacy
 from torch.nn.functional import log_softmax
 from transformers import (
     AutoModelForCausalLM,

@@ -2,7 +2,7 @@
 from text_metrics.surprisal_extractors.base_extractor import BaseSurprisalExtractor
 from typing import List, Tuple
 import numpy as np
-from utils import remove_redundant_left_context
+from text_metrics.utils import remove_redundant_left_context
 import torch
 
 
@@ -30,7 +30,11 @@ class CatCtxLeftSurpExtractor(BaseSurprisalExtractor):
 
         # in offset_mapping, find the index of the first token of the target_text (the first tuple with the first element equal to target_text_char_onset)
         offset_mapping_first_index = [
-            i for i, (start, end) in enumerate(offset_mapping) if start == target_text_char_onset - 1 #! -1 because the first token includes the space
+            i
+            for i, (start, end) in enumerate(offset_mapping)
+            if start
+            == target_text_char_onset
+            - 1  #! -1 because the first token includes the space
         ][0]
 
         target_text_log_probs = all_log_probs[

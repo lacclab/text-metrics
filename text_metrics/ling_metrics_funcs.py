@@ -7,7 +7,7 @@ import pkg_resources
 import spacy
 from text_metrics.surprisal_extractors.base_extractor import BaseSurprisalExtractor
 
-from utils import get_parsing_features, string_to_log_probs, clean_text
+from text_metrics.utils import get_parsing_features, string_to_log_probs, clean_text
 from wordfreq import tokenize, word_frequency
 
 

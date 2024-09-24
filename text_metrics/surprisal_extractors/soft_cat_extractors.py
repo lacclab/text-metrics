@@ -3,8 +3,8 @@ from typing import List, Tuple
 
 import numpy as np
 import torch
-from surprisal_extractors.base_extractor import BaseSurprisalExtractor
-from utils import split_text_into_sentences
+from text_metrics.surprisal_extractors.base_extractor import BaseSurprisalExtractor
+from text_metrics.utils import split_text_into_sentences
 
 
 class SoftCatCtxSurpExtractor(BaseSurprisalExtractor):
