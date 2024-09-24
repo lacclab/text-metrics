@@ -6,7 +6,7 @@ import tqdm
 import spacy
 from spacy.language import Language
 import torch
-from utils import break_down_p_id
+from utils import break_down_p_id, add_col_not_num_or_punc
 from ling_metrics_funcs import get_metrics
 from surprisal_extractors import base_extractor
 from surprisal_extractors import extractor_switch
@@ -377,6 +377,7 @@ def add_metrics_to_eye_tracking(
     eye_tracking_data: pd.DataFrame,
     surprisal_extraction_model_names: List[str],
     spacy_model_name: str,
+    surp_extractor_type: extractor_switch.SurpExtractorType,
     parsing_mode: Literal["keep-first", "keep-all", "re-tokenize"],
     add_question_in_prompt: bool = False,
     model_target_device: str = "cpu",
@@ -437,7 +438,7 @@ def add_metrics_to_eye_tracking(
         text_col_name="IA_LABEL",
         text_key_cols=text_key_cols,
         surprisal_extraction_model_names=surprisal_extraction_model_names,
-        surp_extractor_type=extractor_switch.SurpExtractorType.SOFT_CAT_WHOLE_CTX_LEFT,
+        surp_extractor_type=surp_extractor_type,
         parsing_mode=parsing_mode,
         spacy_model=spacy_model,
         model_target_device=model_target_device,
@@ -505,11 +506,16 @@ if __name__ == "__main__":
         engine="pyarrow",
     )
     et_data = break_down_p_id(et_data)
-    et_data = et_data[et_data["batch"] == 1]
+    # et_data = et_data[et_data["batch"] == 1]
+    et_data = et_data.drop(
+        columns=["gpt2_Surprisal", "Wordfreq_Frequency", "subtlex_Frequency", "Length"]
+    )
+    et_data = add_col_not_num_or_punc(et_data)
 
     et_data_enriched = add_metrics_to_eye_tracking(
-        eye_tracking_data=et_data,
-        surprisal_extraction_model_names=["gpt2", "gpt2-medium"],
+        eye_tracking_data=et_data.copy(),
+        surprisal_extraction_model_names=["EleutherAI/pythia-70m"],
+        surp_extractor_type=extractor_switch.SurpExtractorType.CAT_CTX_LEFT,
         spacy_model_name="en_core_web_sm",
         parsing_mode="re-tokenize",
         add_question_in_prompt=True,
@@ -517,6 +523,21 @@ if __name__ == "__main__":
     )
     # Save the enriched data
     et_data_enriched.to_csv(
-        "enriched_eye_tracking_data_enriched_surp_WholeSoftCat.csv",
+        "enriched_eye_tracking_data_enriched_surp_CAT_CTX_LEFT.csv",
+        index=False,
+    )
+
+    et_data_enriched = add_metrics_to_eye_tracking(
+        eye_tracking_data=et_data.copy(),
+        surprisal_extraction_model_names=["EleutherAI/pythia-70m"],
+        surp_extractor_type=extractor_switch.SurpExtractorType.SOFT_CAT_WHOLE_CTX_LEFT,
+        spacy_model_name="en_core_web_sm",
+        parsing_mode="re-tokenize",
+        add_question_in_prompt=True,
+        model_target_device="cuda:1",
+    )
+    # Save the enriched data
+    et_data_enriched.to_csv(
+        "enriched_eye_tracking_data_enriched_surp_SOFT_CAT_WHOLE_CTX_LEFT.csv",
         index=False,
     )

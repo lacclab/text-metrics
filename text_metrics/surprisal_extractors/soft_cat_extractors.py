@@ -19,7 +19,14 @@ class SoftCatCtxSurpExtractor(BaseSurprisalExtractor):
             model_name, model_target_device, pythia_checkpoint, hf_access_token
         )
 
-        self.model_wte = self.model.transformer.wte
+        if "pythia" in self.model_name:
+            self.model_wte = self.model.gpt_neox.embed_in
+        elif "gpt2" in self.model_name:
+            self.model_wte = self.model.transformer.wte
+        else:
+            raise NotImplementedError(
+                f"{self.model_name} isn't supported for extracting embedding-level word-embeddings"
+            )
 
     def _get_embedded_left_context(self, left_context_text: str, device: str):
         raise NotImplementedError

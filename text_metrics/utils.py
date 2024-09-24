@@ -15,6 +15,7 @@ from transformers import (
     LlamaForCausalLM,
     MambaForCausalLM,
 )
+import re
 
 CONTENT_WORDS = {
     "PUNCT": False,
@@ -306,6 +307,13 @@ def split_text_into_sentences(text, spacy_module):
     # Extract and return the sentences
     sentences = [sent.text for sent in doc.sents]
     return sentences
+
+
+def add_col_not_num_or_punc(df: pd.DataFrame):
+    df["not_num_or_punc"] = df["IA_LABEL"].apply(
+        lambda x: bool(re.match("^[a-zA-Z ]*$", x))
+    )
+    return df
 
 
 def break_down_p_id(et_data_enriched: pd.DataFrame):
