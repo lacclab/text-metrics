@@ -21,5 +21,6 @@ setup(
         "torch",
         "spacy",
         "accelerate",
+        "sentence-splitter",
     ],
 )
