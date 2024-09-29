@@ -228,6 +228,7 @@ def extract_metrics_for_text_df(
     """
     get_metrics_kwargs = {} if get_metrics_kwargs is None else get_metrics_kwargs.copy()
     metric_dfs = []
+    i = 0
     for row in tqdm.tqdm(
         text_df.reset_index().itertuples(),
         total=len(text_df),
@@ -527,17 +528,17 @@ if __name__ == "__main__":
         index=False,
     )
 
-    et_data_enriched = add_metrics_to_eye_tracking(
-        eye_tracking_data=et_data.copy(),
-        surprisal_extraction_model_names=["EleutherAI/pythia-70m"],
-        surp_extractor_type=extractor_switch.SurpExtractorType.SOFT_CAT_WHOLE_CTX_LEFT,
-        spacy_model_name="en_core_web_sm",
-        parsing_mode="re-tokenize",
-        add_question_in_prompt=True,
-        model_target_device="cuda:1",
-    )
-    # Save the enriched data
-    et_data_enriched.to_csv(
-        "enriched_eye_tracking_data_enriched_surp_SOFT_CAT_WHOLE_CTX_LEFT.csv",
-        index=False,
-    )
+    # et_data_enriched = add_metrics_to_eye_tracking(
+    #     eye_tracking_data=et_data.copy(),
+    #     surprisal_extraction_model_names=["EleutherAI/pythia-70m"],
+    #     surp_extractor_type=extractor_switch.SurpExtractorType.SOFT_CAT_SENTENCES,
+    #     spacy_model_name="en_core_web_sm",
+    #     parsing_mode="re-tokenize",
+    #     add_question_in_prompt=True,
+    #     model_target_device="cuda:1",
+    # )
+    # # Save the enriched data
+    # et_data_enriched.to_csv(
+    #     "enriched_eye_tracking_data_enriched_surp_SOFT_CAT_SENTENCES.csv",
+    #     index=False,
+    # )

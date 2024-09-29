@@ -297,17 +297,6 @@ def _join_surp(words: list[str], tok_surps: list[tuple[str, float]]):
     return out
 
 
-# Function to split text into sentences
-def split_text_into_sentences(text, spacy_module):
-    # Process the text using the nlp object
-    # Load the English model in spacy
-    doc = spacy_module(text)
-
-    # Extract and return the sentences
-    sentences = [sent.text for sent in doc.sents]
-    return sentences
-
-
 def add_col_not_num_or_punc(df: pd.DataFrame):
     df["not_num_or_punc"] = df["IA_LABEL"].apply(
         lambda x: bool(re.match("^[a-zA-Z ]*$", x))

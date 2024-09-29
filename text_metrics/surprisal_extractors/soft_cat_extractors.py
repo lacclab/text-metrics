@@ -4,7 +4,7 @@ from typing import List, Tuple
 import numpy as np
 import torch
 from text_metrics.surprisal_extractors.base_extractor import BaseSurprisalExtractor
-from text_metrics.utils import split_text_into_sentences
+from sentence_splitter import split_text_into_sentences
 
 
 class SoftCatCtxSurpExtractor(BaseSurprisalExtractor):
@@ -87,17 +87,22 @@ class SoftCatCtxSurpExtractor(BaseSurprisalExtractor):
     def _full_embds_to_log_probs(
         self, full_embeddings: torch.Tensor, target_labels, target_text_onset: int
     ):
-        #  <bos> <CLS> w1, ..., wn-1, wn, <eos>
+        #  <bos> <left_ctx> w1, ..., wn-1, wn, <eos>
         output = self.model(inputs_embeds=full_embeddings)
-        # logits of: <CLS> w1, ..., wn-1  (starts with the logits for CLS because it's the probs for w1, and ends with the logits of wn-1 that indicate the probs of wn)
+        # logits of: <left_ctx> w1, ..., wn-1  (starts with the logits for CLS because it's the probs for w1, and ends with the logits of wn-1 that indicate the probs of wn)
+        # 0, 1, 2, 3, 4
+        # (let's say target text begins at 4. 0 is BOS and 1, 2, 3 are the left context. In this case, target_text_onset
+        #  is 3 because it's onset with respect to the left context without the BOS token)
+        # output["logits"][0] -> logits of the first token of the left context
+        # output["logits"][1] -> logits of the second token of the left context
+        # output["logits"][2] -> logits of the third token of the left context
+        # output["logits"][3] -> logits of the first token of the target text
         shift_logits = output["logits"][
-            ..., 1:-2, :
+            ..., target_text_onset:-2, :
         ].contiguous()  # remove the last token from the logits
 
-        #  This shift is necessary because the labels are shifted by (one position + the length of the left context) to the right
-        # (because the logits are w.r.t the next token)
-        # labels for w1, ..., wn-1
-        shift_labels = target_labels[..., target_text_onset - 1 :].contiguous()
+        #  Here the target lebels are pure target labels without the left context and BOS / EOS token
+        shift_labels = target_labels.contiguous()
 
         log_probs = torch.nn.functional.cross_entropy(
             shift_logits.view(-1, shift_logits.size(-1)),
@@ -202,7 +207,7 @@ class SoftCatSentencesSurpExtractor(SoftCatCtxSurpExtractor):
         with torch.no_grad():
             acc_sentence_embedding = []
 
-            sentences = split_text_into_sentences(left_context_text, self.spacy_module)
+            sentences = split_text_into_sentences(text=left_context_text, language="en")
             for sentence in sentences:
                 # Tokenize the left context
                 left_context_tokens = self.tokenizer(
