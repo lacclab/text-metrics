@@ -228,7 +228,6 @@ def extract_metrics_for_text_df(
     """
     get_metrics_kwargs = {} if get_metrics_kwargs is None else get_metrics_kwargs.copy()
     metric_dfs = []
-    i = 0
     for row in tqdm.tqdm(
         text_df.reset_index().itertuples(),
         total=len(text_df),
