@@ -1,0 +1,3 @@
+[submodule "text_metrics/pimentel_word_prob"]
+	path = text_metrics/pimentel_word_prob
+	url = git@github.com:YoavMeiri/pimentel_word_prob.git

@@ -467,10 +467,7 @@ def string_to_log_probs(string: str, probs: np.ndarray, offsets: list):
     cur_word_ind = 0
     for i, (lp, ind) in enumerate(zip(probs, offsets)):
         cur_prob += lp
-        if ind[1] == word_mapping[cur_word_ind][1] + 1:
-            # this handles the case in which there are multiple tokens for the same word
-            if i < len(probs) - 1 and offsets[i + 1][1] == ind[1]:
-                continue
+        if ind[1] == word_mapping[cur_word_ind][1]:
             agg_log_probs.append(cur_prob)
             cur_prob = 0
             cur_word_ind += 1
