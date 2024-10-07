@@ -1,18 +1,15 @@
 import gc
 from functools import partial
-from typing import Union, Tuple, Dict, List, Literal
+from typing import Tuple, Dict, List, Literal
 import pandas as pd
 import tqdm
-from transformers import (
-    AutoTokenizer,
-    AutoModelForCausalLM,
-    GPTNeoXTokenizerFast,
-    GPTNeoXForCausalLM,
-)
 import spacy
 from spacy.language import Language
 import torch
-from text_metrics.utils import get_metrics, init_tok_n_model
+from text_metrics.utils import break_down_p_id, add_col_not_num_or_punc
+from text_metrics.ling_metrics_funcs import get_metrics
+from text_metrics.surprisal_extractors import base_extractor
+from text_metrics.surprisal_extractors import extractor_switch
 
 
 def create_text_input(
@@ -45,11 +42,14 @@ def create_text_input(
     curr_w_index = 0
 
     # add prefixes and document their word indices
+    prefix_text = ""
     prefixes_word_indices_ranges = {}
     for prefix_col in prefix_col_names:
         curr_prefix = getattr(row, prefix_col)
         if (curr_prefix is not None) and (len(curr_prefix) > 0):
-            text_input += curr_prefix + " "
+            addition_to_acc_text = curr_prefix + " "
+            text_input += addition_to_acc_text
+            prefix_text += addition_to_acc_text
         curr_prefix_len = len(curr_prefix.split())
         next_w_index = curr_w_index + curr_prefix_len
         prefixes_word_indices_ranges[prefix_col] = (
@@ -57,6 +57,8 @@ def create_text_input(
             next_w_index - 1,
         )
         curr_w_index = next_w_index
+
+    prefix_text = prefix_text[:-1]  # remove the last space
 
     row_main_text = getattr(row, text_col_name).strip()
     row_main_text_len = len(row_main_text.split())
@@ -68,16 +70,20 @@ def create_text_input(
     curr_w_index += row_main_text_len - 1
 
     # add suffixes and document their word indices
+    suffix_text = ""
     suffixes_word_indices_ranges = {}
     if len(suffix_col_names) > 0:
         text_input += " "
         for i, suffix_col in enumerate(suffix_col_names):
             curr_suffix_text = getattr(row, suffix_col)
-            text_input += (
+            addition_to_acc_text = (
                 curr_suffix_text + " "
                 if i < len(suffix_col_names) - 1
                 else curr_suffix_text
             )
+            text_input += addition_to_acc_text
+            suffix_text += addition_to_acc_text
+
             curr_suffix_len = len(curr_suffix_text.split())
             suffixes_word_indices_ranges[suffix_col] = (
                 curr_w_index,
@@ -86,7 +92,10 @@ def create_text_input(
             curr_w_index += curr_suffix_len
 
     return (
-        text_input,
+        text_input,  # full text containing prefixes, main text and suffixes
+        row_main_text,
+        prefix_text,
+        suffix_text,
         main_text_word_indices,
         prefixes_word_indices_ranges,
         suffixes_word_indices_ranges,
@@ -168,14 +177,9 @@ def extract_metrics_for_text_df(
     text_df: pd.DataFrame,
     text_col_name: str,
     text_key_cols: List[str],
-    model: Union[AutoModelForCausalLM, GPTNeoXForCausalLM],
-    model_name: str,
-    tokenizer: Union[AutoTokenizer, GPTNeoXTokenizerFast],
+    surp_extractor: base_extractor.BaseSurprisalExtractor,
     ordered_prefix_col_names: List[str] = [],
-    keep_prefix_metrics: bool | List[str] = False,
     ordered_suffix_col_names: List[str] = [],
-    keep_suffix_metrics: bool | List[str] = False,
-    rebase_index_in_main_text: bool = False,
     get_metrics_kwargs: dict | None = None,
 ) -> pd.DataFrame:
     """This function extracts word level characteristics
@@ -228,7 +232,10 @@ def extract_metrics_for_text_df(
     ):
         if len(ordered_prefix_col_names) > 0 or len(ordered_suffix_col_names) > 0:
             (
-                text_input,
+                text_input,  # full text containing prefixes, main text and suffixes
+                main_text,
+                prefix_text,
+                suffix_text,
                 main_text_word_indices,
                 prefixes_word_indices_ranges,
                 suffixes_word_indices_ranges,
@@ -236,34 +243,19 @@ def extract_metrics_for_text_df(
                 row, text_col_name, ordered_prefix_col_names, ordered_suffix_col_names
             )
         else:
-            text_input = getattr(row, text_col_name).strip()
-            main_text_word_indices = (0, len(text_input.split()) - 1)
+            main_text = getattr(row, text_col_name).strip()
+            prefix_text = ""
 
         # add here new metrics
+        #! Note: for now, the get metrics function can accept only left context
+        # Note: merged df contains only the main text metrics
         merged_df = get_metrics(
-            text=text_input.strip(),
-            models=[model],
-            tokenizers=[tokenizer],
-            model_names=[model_name],
+            target_text=main_text.strip(),
+            left_context_text=prefix_text,
+            surp_extractor=surp_extractor,
             **get_metrics_kwargs,
         )
         merged_df.reset_index(inplace=True)
-
-        # in merged df, remove the prefixes and suffixes that are
-        # not in the keep_prefix_metrics and keep_suffix_metrics
-        if len(ordered_prefix_col_names) > 0 or len(ordered_suffix_col_names) > 0:
-            merged_df = filter_prefix_suffix_metrics(
-                merged_df,
-                ordered_prefix_col_names,
-                keep_prefix_metrics,
-                ordered_suffix_col_names,
-                keep_suffix_metrics,
-                prefixes_word_indices_ranges,
-                suffixes_word_indices_ranges,
-            )
-
-        if rebase_index_in_main_text and len(ordered_prefix_col_names) > 0:
-            merged_df["index"] = merged_df["index"] - main_text_word_indices[0]
 
         merged_df[text_key_cols] = [getattr(row, key_col) for key_col in text_key_cols]
 
@@ -277,6 +269,7 @@ def extract_metrics_for_text_df_multiple_hf_models(
     text_col_name: str,
     text_key_cols: List[str],
     surprisal_extraction_model_names: List[str],
+    surp_extractor_type: extractor_switch.SurpExtractorType,
     add_parsing_features: bool = True,
     parsing_mode: (
         Literal["keep-first", "keep-all", "re-tokenize"] | None
@@ -296,6 +289,8 @@ def extract_metrics_for_text_df_multiple_hf_models(
         text_key_cols (List[str]): The columns in text_df that identify the text
         surprisal_extraction_model_names (List[str]): The name of the models to extract surprisal
             values from
+        surp_extractor_type (extractor_switch.SurpExtractorType): The type of surprisal
+            extractor to use (e.g. CAT_CTX_LEFT, SOFT_CAT_SENTENCES)
         add_parsing_features (bool, optional): If True, parsing features will be added to the
             extracted metrics. Defaults to True.
         parsing_mode (Literal[&quot;keep): Type of parsing to use. one of
@@ -334,9 +329,10 @@ def extract_metrics_for_text_df_multiple_hf_models(
             print("Extracting Frequency, Length")
         print(f"Extracting surprisal using model: {model_name}")
 
-        tokenizer, model = init_tok_n_model(
+        surp_extractor = extractor_switch.get_surp_extractor(
+            extractor_type=surp_extractor_type,
             model_name=model_name,
-            device=model_target_device,
+            model_target_device=model_target_device,
             hf_access_token=hf_access_token,
         )
 
@@ -347,9 +343,7 @@ def extract_metrics_for_text_df_multiple_hf_models(
             text_df=text_df,
             text_col_name=text_col_name,  # this is after turning all the words into a single string
             text_key_cols=text_key_cols,
-            model=model,
-            model_name=surprisal_extraction_model_names[i],
-            tokenizer=tokenizer,
+            surp_extractor=surp_extractor,
             get_metrics_kwargs=get_metrics_kwargs,
             **extract_metrics_for_text_df_kwargs,
         )
@@ -373,7 +367,7 @@ def extract_metrics_for_text_df_multiple_hf_models(
                 validate="one_to_one",
             )
         # move the model back to the cpu and delete it to free up space
-        del model
+        del surp_extractor
         gc.collect()
         torch.cuda.empty_cache()
 
@@ -384,6 +378,7 @@ def add_metrics_to_eye_tracking(
     eye_tracking_data: pd.DataFrame,
     surprisal_extraction_model_names: List[str],
     spacy_model_name: str,
+    surp_extractor_type: extractor_switch.SurpExtractorType,
     parsing_mode: Literal["keep-first", "keep-all", "re-tokenize"],
     add_question_in_prompt: bool = False,
     model_target_device: str = "cpu",
@@ -412,7 +407,8 @@ def add_metrics_to_eye_tracking(
     without_duplicates = eye_tracking_data[
         [
             "paragraph_id",
-            "article_title",
+            "batch",
+            "article_id",
             "level",
             "IA_ID",
             "has_preview",
@@ -421,9 +417,9 @@ def add_metrics_to_eye_tracking(
         ]
     ].drop_duplicates()
 
-    # Group by paragraph_id, article_title, level and join all IA_LABELs (words)
+    # Group by paragraph_id, batch, article_id, level and join all IA_LABELs (words)
     text_from_et = without_duplicates.groupby(
-        ["paragraph_id", "article_title", "level", "has_preview", "question"]
+        ["paragraph_id", "batch", "article_id", "level", "has_preview", "question"]
     )["IA_LABEL"].apply(list)
 
     text_from_et = text_from_et.apply(lambda text: " ".join(text))
@@ -431,7 +427,8 @@ def add_metrics_to_eye_tracking(
     spacy_model = spacy.load(spacy_model_name)
     text_key_cols = [
         "paragraph_id",
-        "article_title",
+        "batch",
+        "article_id",
         "level",
         "has_preview",
         "question",
@@ -442,6 +439,7 @@ def add_metrics_to_eye_tracking(
         text_col_name="IA_LABEL",
         text_key_cols=text_key_cols,
         surprisal_extraction_model_names=surprisal_extraction_model_names,
+        surp_extractor_type=surp_extractor_type,
         parsing_mode=parsing_mode,
         spacy_model=spacy_model,
         model_target_device=model_target_device,
@@ -489,7 +487,8 @@ def add_metrics_to_eye_tracking(
         metric_df,
         how="left",
         on=[
-            "article_title",
+            "batch",
+            "article_id",
             "has_preview",
             "question",
             "paragraph_id",
@@ -503,18 +502,43 @@ def add_metrics_to_eye_tracking(
 
 
 if __name__ == "__main__":
-    et_data = pd.read_csv("intermediate_eye_tracking_data.csv")
+    et_data = pd.read_csv(
+        "/data/home/shared/onestop/processed/ia_data_enriched_360_17092024.csv",
+        engine="pyarrow",
+    )
+    et_data = break_down_p_id(et_data)
+    # et_data = et_data[et_data["batch"] == 1]
+    et_data = et_data.drop(
+        columns=["gpt2_Surprisal", "Wordfreq_Frequency", "subtlex_Frequency", "Length"]
+    )
+    et_data = add_col_not_num_or_punc(et_data)
+
     et_data_enriched = add_metrics_to_eye_tracking(
-        eye_tracking_data=et_data,
-        surprisal_extraction_model_names=["gpt2", "gpt2-medium"],
+        eye_tracking_data=et_data.copy(),
+        surprisal_extraction_model_names=["EleutherAI/pythia-70m"],
+        surp_extractor_type=extractor_switch.SurpExtractorType.CAT_CTX_LEFT,
         spacy_model_name="en_core_web_sm",
         parsing_mode="re-tokenize",
         add_question_in_prompt=True,
         model_target_device="cuda:1",
-        hf_access_token="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",
     )
     # Save the enriched data
     et_data_enriched.to_csv(
-        "enriched_eye_tracking_data_enriched_surp.csv",
+        "enriched_eye_tracking_data_enriched_surp_CAT_CTX_LEFT.csv",
         index=False,
     )
+
+    # et_data_enriched = add_metrics_to_eye_tracking(
+    #     eye_tracking_data=et_data.copy(),
+    #     surprisal_extraction_model_names=["EleutherAI/pythia-70m"],
+    #     surp_extractor_type=extractor_switch.SurpExtractorType.SOFT_CAT_SENTENCES,
+    #     spacy_model_name="en_core_web_sm",
+    #     parsing_mode="re-tokenize",
+    #     add_question_in_prompt=True,
+    #     model_target_device="cuda:1",
+    # )
+    # # Save the enriched data
+    # et_data_enriched.to_csv(
+    #     "enriched_eye_tracking_data_enriched_surp_SOFT_CAT_SENTENCES.csv",
+    #     index=False,
+    # )

@@ -6,7 +6,7 @@ import spacy
 import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from text_metrics.utils import get_metrics
+from utils import get_metrics
 
 try:
     _ = spacy.load("en_core_web_sm")

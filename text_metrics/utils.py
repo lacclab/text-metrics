@@ -1,13 +1,8 @@
-"""This module contains the functions for extracting the metrics from the text."""
-
-import string
 from collections import defaultdict
-from typing import List, Literal, Union
+from typing import List, Literal
 
 import numpy as np
 import pandas as pd
-import pkg_resources
-import spacy
 import torch
 from spacy.language import Language
 from torch.nn.functional import log_softmax
@@ -19,7 +14,7 @@ from transformers import (
     LlamaForCausalLM,
     MambaForCausalLM,
 )
-from wordfreq import tokenize, word_frequency
+import re
 
 CONTENT_WORDS = {
     "PUNCT": False,
@@ -58,6 +53,25 @@ REDUCED_POS = {
     "X": "FUNC",
     "PART": "FUNC",
 }
+
+
+def clean_text(raw_text: str) -> str:
+    """
+    Replaces the problematic characters in the raw_text, made for OnestopQA.
+    E.g., "ë" -> "e"
+    """
+    return (
+        raw_text.replace("’", "'")
+        .replace("“", '"')
+        .replace("”", '"')
+        .replace("–", "-")
+        .replace("…", "...")
+        .replace("‘", "'")
+        .replace("é", "e")
+        .replace("ë", "e")
+        .replace("ﬁ", "fi")
+        .replace("ï", "i")
+    )
 
 
 def is_content_word(pos: str) -> bool:
@@ -283,6 +297,26 @@ def _join_surp(words: list[str], tok_surps: list[tuple[str, float]]):
     return out
 
 
+def add_col_not_num_or_punc(df: pd.DataFrame):
+    df["not_num_or_punc"] = df["IA_LABEL"].apply(
+        lambda x: bool(re.match("^[a-zA-Z ]*$", x))
+    )
+    return df
+
+
+def break_down_p_id(et_data_enriched: pd.DataFrame):
+    # "unique_paragraph_id" -> "batch", 'article_id', 'level', 'paragraph_id' (sepated by "_")
+    col_names = ["batch", "article_id", "level", "paragraph_id"]
+    for i, name in enumerate(col_names):
+        et_data_enriched[name] = et_data_enriched["unique_paragraph_id"].apply(
+            lambda x: x.split("_")[i]
+        )
+        if name != "level":
+            et_data_enriched[name] = et_data_enriched[name].astype(int)
+
+    return et_data_enriched
+
+
 def init_tok_n_model(
     model_name: str,
     device: str = "cpu",
@@ -397,176 +431,6 @@ def init_tok_n_model(
     return tokenizer, model
 
 
-def _create_input_tokens(
-    tokenizer: Union[AutoTokenizer, GPTNeoXTokenizerFast],
-    encodings: dict,
-    start_ind: int,
-    is_last_chunk: bool,
-    device: str,
-):
-    try:
-        bos_token_added = tokenizer.bos_token_id
-    except AttributeError:
-        bos_token_added = tokenizer.pad_token_id
-
-    tokens_lst = encodings["input_ids"]
-    if is_last_chunk:
-        tokens_lst.append(tokenizer.eos_token_id)
-    if start_ind == 0:
-        tokens_lst = [bos_token_added] + tokens_lst
-    tensor_input = torch.tensor(
-        [tokens_lst],
-        device=device,
-    )
-    return tensor_input
-
-
-def _tokens_to_log_probs(
-    model: Union[
-        AutoModelForCausalLM, GPTNeoXForCausalLM, MambaForCausalLM, LlamaForCausalLM
-    ],
-    tensor_input: torch.Tensor,
-    is_last_chunk: bool,
-):
-    output = model(tensor_input, labels=tensor_input)
-    shift_logits = output["logits"][
-        ..., :-1, :
-    ].contiguous()  # remove the last token from the logits
-
-    #  This shift is necessary because the labels are shifted by one position to the right
-    # (because the logits are w.r.t the next token)
-    shift_labels = tensor_input[
-        ..., 1:
-    ].contiguous()  #! remove the first token from the labels,
-
-    log_probs = torch.nn.functional.cross_entropy(
-        shift_logits.view(-1, shift_logits.size(-1)),
-        shift_labels.view(-1),
-        reduction="none",
-    )
-
-    # varify that the average of the log_probs is equal to the loss
-    # TODO Is 15.5726 close enough to 15.5728? I think so, stop go away.
-    # assert torch.isclose(
-    #     torch.exp(sum(log_probs) / len(log_probs)), torch.exp(output["loss"]), atol=1e-5,
-    # )
-
-    shift_labels = shift_labels[0]
-
-    if is_last_chunk:
-        # remove the eos_token log_prob
-        log_probs = log_probs[:-1]
-        shift_labels = shift_labels[:-1]
-
-    return log_probs, shift_labels
-
-
-def surprise(
-    sentence: str,
-    model: Union[
-        AutoModelForCausalLM, GPTNeoXForCausalLM, MambaForCausalLM, LlamaForCausalLM
-    ],
-    tokenizer: Union[
-        AutoTokenizer,
-        GPTNeoXTokenizerFast,
-    ],
-    model_name: str,
-    stride: int = 512,
-):
-    """This function calculates the surprisal of a sentence using a language model.
-    In case the sentence is too long, it is split into chunks while keeping previous context of STRIDE tokens.
-
-    Args:
-        sentence (str): The sentence for which the surprisal is calculated
-        model (Union[AutoModelForCausalLM, GPTNeoXForCausalLM]): The language model from which the surprisal is calculated
-        tokenizer (Union[AutoTokenizer, GPTNeoXTokenizerFast]): The tokenizer for the language model
-        model_name (str): The name of the language model (e.g "gpt2", "gpt-neo-125M", "opt-125m", "pythia-1b")
-        stride (int, optional): The number of tokens to keep as context. Defaults to 512.
-
-    Returns:
-        Tuple[np.ndarray, List[Tuple[int]]]: The surprisal values for each token in the sentence, the offset mapping
-        The offset mapping is a list of tuples, where each tuple contains the start and end character index of the token
-    """
-    with torch.no_grad():
-        all_log_probs = torch.tensor([], device=model.device)
-        offset_mapping = []
-        start_ind = 0
-        try:
-            max_ctx = model.config.max_position_embeddings
-        except AttributeError:
-            max_ctx = int(1e6)
-
-        assert (
-            stride < max_ctx
-        ), f"Stride size {stride} is larger than the maximum context size {max_ctx}"
-
-        # print(max_ctx)
-        accumulated_tokenized_text = []
-        while True:
-            encodings = tokenizer(
-                sentence[start_ind:],
-                max_length=max_ctx - 2,
-                truncation=True,
-                return_offsets_mapping=True,
-                add_special_tokens=False,
-            )
-            is_last_chunk = (encodings["offset_mapping"][-1][1] + start_ind) == len(
-                sentence
-            )
-
-            tensor_input = _create_input_tokens(
-                tokenizer,
-                encodings,
-                start_ind,
-                is_last_chunk,
-                model.device,
-            )
-
-            log_probs, shift_labels = _tokens_to_log_probs(
-                model, tensor_input, is_last_chunk
-            )
-
-            # Handle the case where the sentence is too long for the model
-            offset = 0 if start_ind == 0 else stride - 1
-            all_log_probs = torch.cat([all_log_probs, log_probs[offset:]])
-            accumulated_tokenized_text += shift_labels[offset:]
-
-            left_index_add_offset_mapping = offset if start_ind == 0 else offset + 1
-            offset_mapping_to_add = encodings["offset_mapping"][
-                left_index_add_offset_mapping:
-            ]
-
-            offset_mapping.extend(
-                [(i + start_ind, j + start_ind) for i, j in offset_mapping_to_add]
-            )
-            if is_last_chunk:
-                break
-
-            if start_ind == 0:
-                "If we got here, the context is too long"
-                # find the context length in tokens
-                context_length = len(tokenizer.encode(sentence))
-                print(
-                    f"The context length is too long ({context_length}>{max_ctx}) for {model_name}. Splitting the sentence into chunks with stride {stride}"
-                )
-
-            start_ind += encodings["offset_mapping"][-stride - 1][1]
-
-    # The accumulated_tokenized_text is the text we extract surprisal values for
-    # It is after removing the BOS/EOS tokens
-    # Make sure the accumulated_tokenized_text is equal to the original sentence
-    assert (
-        accumulated_tokenized_text
-        == tokenizer(sentence, add_special_tokens=False)["input_ids"]
-    )
-
-    all_log_probs = np.asarray(all_log_probs.cpu())
-
-    assert all_log_probs.shape[0] == len(offset_mapping)
-
-    return all_log_probs, offset_mapping
-
-
 def get_word_mapping(words: List[str]):
     """Given a list of words, return the offset mapping for each word.
 
@@ -603,7 +467,7 @@ def string_to_log_probs(string: str, probs: np.ndarray, offsets: list):
     cur_word_ind = 0
     for i, (lp, ind) in enumerate(zip(probs, offsets)):
         cur_prob += lp
-        if ind[1] == word_mapping[cur_word_ind][1]:
+        if ind[1] == word_mapping[cur_word_ind][1] + 1:
             # this handles the case in which there are multiple tokens for the same word
             if i < len(probs) - 1 and offsets[i + 1][1] == ind[1]:
                 continue
@@ -615,273 +479,50 @@ def string_to_log_probs(string: str, probs: np.ndarray, offsets: list):
     return agg_log_probs, zipped_surp
 
 
-# Credits: https://github.com/byungdoh/llm_surprisal/blob/eacl24/get_llm_surprisal.py
-# https://github.com/rycolab/revisiting-uid/blob/0b60df7e8f474d9c7ac938e7d8a02fda6fc8787a/src/language_modeling.py#L136
-def get_surprisal(
-    text: str,
-    tokenizer: Union[AutoTokenizer, GPTNeoXTokenizerFast],
-    model: Union[
-        AutoModelForCausalLM, GPTNeoXForCausalLM, MambaForCausalLM, LlamaForCausalLM
-    ],
-    model_name: str,
-    context_stride: int = 512,
-) -> pd.DataFrame:
+def remove_redundant_left_context(
+    tokenizer,
+    left_context_text: str,
+    max_ctx_in_tokens: int,
+):
+    """In surprise, we return surprisals only for the target_text. This function removes the redundant left context from the target_text
+
+    Args:
+        target_text (str): _description_
+        left_context_text (str): _description_
     """
-    Get surprisal values for each word in text.
-
-    Words are split by white space, and include adjacent punctuation.
-    A surprisal of a word is the sum of the surprisal of the subwords
-    (as split by the tokenizer) that make up the word.
-
-    :param text: str, the text to get surprisal values for.
-    :param model: the model to extract surprisal values from.
-    :param tokenizer: how to tokenize the text. Should match the model input expectations.
-    :return: pd.DataFrame, each row represents a word and its surprisal.
-
-    >>> tokenizer = AutoTokenizer.from_pretrained('gpt2')
-    >>> model = AutoModelForCausalLM.from_pretrained('gpt2')
-    >>> text = "hello, how are you?"
-    >>> surprisals = get_surprisal(text=text,tokenizer=tokenizer,model=model)
-    >>> surprisals
-         Word  Surprisal
-    0  hello,  19.789963
-    1     how  12.335088
-    2     are   5.128458
-    3    you?   3.704563
-    """
-
-    probs, offset_mapping = surprise(
-        text, model, tokenizer, model_name, stride=context_stride
-    )
-    return pd.DataFrame(
-        string_to_log_probs(text, probs, offset_mapping)[1],
-        columns=["Word", "Surprisal"],
-    )
+    # remove words fron left_context_text until the total length of the context is less than max_ctx_in_tokens
+    left_context_tokens = tokenizer.encode(left_context_text)
+    while len(left_context_tokens) > max_ctx_in_tokens:
+        left_context_tokens.pop(0)
+    return tokenizer.decode(left_context_tokens)
 
 
-def get_frequency(text: str) -> pd.DataFrame:
-    """
-    Get (negative log2) frequencies for each word in text.
+# if __name__ == "__main__":
+# text = (
+#     """
+# 113, 115, 117, and 118 are ... The International Union of Pure and Applied Chemistry (IUPAC) is the global organization that controls
+# chemical names. IUPAC confirmed the new elements on 30 December, 2015 after examining studies dating back to 2004.
+# The scientists who found them must now think of formal names for the elements, which have the atomic numbers,
+# 113, 115, 117, and 118. The atomic number is the number of protons in an element’s atomic nucleus.
+# """.replace(
+#         "\n", ""
+#     )
+#     .replace("\t", "")
+#     .replace("    ", "")
+# )
+# model_names = ["gpt2", "gpt2-medium"]
 
-    Words are split by white space.
-    A frequency of a word does not include adjacent punctuation.
-    Half harmonic mean is applied for complex words.
-    E.g. freq(top-level) = 1/(1/freq(top) + 1/freq(level))
+# models_tokenizers = [init_tok_n_model(model_name) for model_name in model_names]
+# tokenizers = [tokenizer for tokenizer, _ in models_tokenizers]
+# models = [model for _, model in models_tokenizers]
 
-    :param text: str, the text to get frequencies for.
-    :return: pd.DataFrame, each row represents a word and its frequency.
+# surp_res = get_metrics(
+#     text=text,
+#     models=models,
+#     tokenizers=tokenizers,
+#     model_names=model_names,
+#     parsing_model=spacy.load("en_core_web_sm"),
+#     add_parsing_features=False,
+# )
 
-    >>> text = "hello, how are you?"
-    >>> frequencies = get_frequency(text=text)
-    >>> frequencies
-         Word  Wordfreq_Frequency  subtlex_Frequency
-    0  hello,           14.217323          10.701528
-    1     how            9.166697           8.317353
-    2     are            7.506353           7.548023
-    3    you?            6.710284           4.541699
-    """
-    words = text.split()
-    frequencies = {
-        "Word": words,
-        "Wordfreq_Frequency": [
-            -np.log2(word_frequency(word, lang="en", minimum=1e-11)) for word in words
-        ],  # minimum equal to ~36.5
-    }
-    # TODO improve loading of file according to https://stackoverflow.com/questions/6028000/how-to-read-a-static-file-from-inside-a-python-package
-    #  and https://setuptools.pypa.io/en/latest/userguide/datafiles.html
-    data = pkg_resources.resource_stream(
-        __name__, "data/SUBTLEXus74286wordstextversion_lower.tsv"
-    )
-    subtlex = pd.read_csv(
-        data,
-        sep="\t",
-        index_col=0,
-    )
-    subtlex["Frequency"] = -np.log2(subtlex["Count"] / subtlex.sum().iloc[0])
-
-    #  TODO subtlex freq should be 'inf' if missing, not zero?
-    subtlex_freqs = []
-    for word in words:
-        tokens = tokenize(word, lang="en")
-        one_over_result = 0.0
-        try:
-            for token in tokens:
-                one_over_result += 1.0 / subtlex.loc[token, "Frequency"]
-        except KeyError:
-            subtlex_freq = 0
-        else:
-            subtlex_freq = 1.0 / one_over_result if one_over_result != 0 else 0
-        subtlex_freqs.append(subtlex_freq)
-    frequencies["subtlex_Frequency"] = subtlex_freqs
-
-    return pd.DataFrame(frequencies)
-
-
-def get_word_length(text: str, disregard_punctuation: bool = True) -> pd.DataFrame:
-    """
-    Get the length of each word in text.
-
-    Words are split by white space.
-
-    :param text: str, the text to get lengths for.
-    :param disregard_punctuation: bool, to include adjacent punctuation (False) or not (True).
-    :return: pd.DataFrame, each row represents a word and its length.
-
-    Examples
-    --------
-    >>> text = "hello, how are you?"
-    >>> lengths = get_word_length(text=text, disregard_punctuation=True)
-    >>> lengths
-         Word  Length
-    0  hello,       5
-    1     how       3
-    2     are       3
-    3    you?       3
-
-    >>> text = "hello, how are you?"
-    >>> lengths = get_word_length(text=text, disregard_punctuation=False)
-    >>> lengths
-         Word  Length
-    0  hello,       6
-    1     how       3
-    2     are       3
-    3    you?       4
-
-
-    """
-    word_lengths = {
-        "Word": text.split(),
-    }
-    if disregard_punctuation:
-        #     text = text.translate(str.maketrans('', '', string.punctuation))
-        word_lengths["Length"] = [
-            len(word.translate(str.maketrans("", "", string.punctuation)))
-            for word in text.split()
-        ]
-    else:
-        word_lengths["Length"] = [len(word) for word in text.split()]
-
-    return pd.DataFrame(word_lengths)
-
-
-def clean_text(raw_text: str) -> str:
-    """
-    Replaces the problematic characters in the raw_text, made for OnestopQA.
-    E.g., "ë" -> "e"
-    """
-    return (
-        raw_text.replace("’", "'")
-        .replace("“", '"')
-        .replace("”", '"')
-        .replace("–", "-")
-        .replace("…", "...")
-        .replace("‘", "'")
-        .replace("é", "e")
-        .replace("ë", "e")
-        .replace("ﬁ", "fi")
-        .replace("ï", "i")
-    )
-
-
-def get_metrics(
-    text: str,
-    models: list[
-        AutoModelForCausalLM, GPTNeoXForCausalLM, MambaForCausalLM, LlamaForCausalLM
-    ],
-    tokenizers: List[AutoTokenizer],
-    model_names: List[str],
-    parsing_model: spacy.Language | None,
-    parsing_mode: (
-        Literal["keep-first", "keep-all", "re-tokenize"] | None
-    ) = "re-tokenize",
-    add_parsing_features: bool = True,
-    context_stride: int = 512,
-) -> pd.DataFrame:
-    """
-    Wrapper function to get the surprisal and frequency values and length of each word in the text.
-
-    :param text: str, the text to get metrics for.
-    :param model: the model to extract surprisal values from.
-    :param tokenizer: how to tokenize the text. Should match the model input expectations.
-    :param parsing_model: the spacy model to use for parsing the text.
-    :param parsing_mode: type of parsing to use. one of ['keep-first','keep-all','re-tokenize']
-    :param add_parsing_features: whether to add parsing features to the output.
-    :return: pd.DataFrame, each row represents a word, its surprisal and frequency.
-
-
-    >>> tokenizer = AutoTokenizer.from_pretrained('gpt2')
-    >>> model = AutoModelForCausalLM.from_pretrained('gpt2')
-    >>> text = "hello, how are you?"
-    >>> words_with_metrics = get_metrics(text=text,tokenizers=[tokenizer],models=[model], model_names=['gpt2'])
-    >>> words_with_metrics
-            Word  Length  Wordfreq_Frequency  subtlex_Frequency  gpt2_Surprisal
-    0  hello,       5           14.217323          10.701528       19.789963
-    1     how       3            9.166697           8.317353       12.335088
-    2     are       3            7.506353           7.548023        5.128458
-    3    you?       3            6.710284           4.541699        3.704563
-    """
-
-    text_reformatted = clean_text(text)
-    surprisals = []
-    for model, tokenizer, model_name in zip(models, tokenizers, model_names):
-        surprisal = get_surprisal(
-            text=text_reformatted,
-            tokenizer=tokenizer,
-            model=model,
-            model_name=model_name,
-            context_stride=context_stride,
-        )
-
-        surprisal.rename(columns={"Surprisal": f"{model_name}_Surprisal"}, inplace=True)
-        surprisals.append(surprisal)
-
-    frequency = get_frequency(text=text_reformatted)
-    word_length = get_word_length(text=text_reformatted, disregard_punctuation=True)
-
-    merged_df = word_length.join(frequency.drop("Word", axis=1))
-    for surprisal in surprisals:
-        merged_df = merged_df.join(surprisal.drop("Word", axis=1))
-
-    if add_parsing_features:
-        assert (
-            parsing_model is not None
-        ), "Please provide a parsing model to extract parsing features."
-        assert (
-            parsing_mode is not None
-        ), "Please provide a parsing mode to extract parsing features."
-
-        parsing_features = get_parsing_features(
-            text_reformatted, parsing_model, parsing_mode
-        )
-        merged_df = merged_df.join(parsing_features)
-
-    return merged_df
-
-
-if __name__ == "__main__":
-    text = (
-        """
-    113, 115, 117, and 118 are ... The International Union of Pure and Applied Chemistry (IUPAC) is the global organization that controls
-    chemical names. IUPAC confirmed the new elements on 30 December, 2015 after examining studies dating back to 2004. 
-    The scientists who found them must now think of formal names for the elements, which have the atomic numbers,
-    113, 115, 117, and 118. The atomic number is the number of protons in an element’s atomic nucleus.
-    """.replace("\n", "")
-        .replace("\t", "")
-        .replace("    ", "")
-    )
-    model_names = ["gpt2", "gpt2-medium"]
-
-    models_tokenizers = [init_tok_n_model(model_name) for model_name in model_names]
-    tokenizers = [tokenizer for tokenizer, _ in models_tokenizers]
-    models = [model for _, model in models_tokenizers]
-
-    surp_res = get_metrics(
-        text=text,
-        models=models,
-        tokenizers=tokenizers,
-        model_names=model_names,
-        parsing_model=spacy.load("en_core_web_sm"),
-        add_parsing_features=False,
-    )
-    
-    print(surp_res.head(10).to_markdown())
+# print(surp_res.head(10).to_markdown())
