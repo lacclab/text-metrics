@@ -247,7 +247,8 @@ def extract_metrics_for_text_df(
             prefix_text = ""
 
         # add here new metrics
-        #! Note that for now, the get metrics function can accept only left context
+        #! Note: for now, the get metrics function can accept only left context
+        # Note: merged df contains only the main text metrics
         merged_df = get_metrics(
             target_text=main_text.strip(),
             left_context_text=prefix_text,
@@ -300,7 +301,7 @@ def extract_metrics_for_text_df_multiple_hf_models(
         hf_access_token (str, optional): A huggingface access token. Defaults to None.
         extract_metrics_for_text_df_kwargs (dict | None, optional): A dict of additional keyword
             arguments for the extract_metrics_for_text_df function. Defaults to None.
-        
+
     Returns:
         pd.DataFrame: A dataframe with the extracted metrics, now instead of each row being a
             whole text, each row is a word in the text. The columns are the main text
