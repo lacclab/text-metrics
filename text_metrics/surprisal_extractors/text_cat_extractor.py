@@ -10,12 +10,17 @@ class CatCtxLeftSurpExtractor(BaseSurprisalExtractor):
     def __init__(
         self,
         model_name: str,
+        extractor_type_name: str,
         model_target_device: str = "cpu",
         pythia_checkpoint: str | None = "step143000",
         hf_access_token: str | None = None,
     ):
         super().__init__(
-            model_name, model_target_device, pythia_checkpoint, hf_access_token
+            model_name,
+            extractor_type_name,
+            model_target_device,
+            pythia_checkpoint,
+            hf_access_token,
         )
 
     def _ommit_left_ctx_from_surp_res(

@@ -11,12 +11,17 @@ class SoftCatCtxSurpExtractor(BaseSurprisalExtractor):
     def __init__(
         self,
         model_name: str,
+        extractor_type_name: str,
         model_target_device: str = "cpu",
         pythia_checkpoint: str | None = "step143000",
         hf_access_token: str | None = None,
     ):
         super().__init__(
-            model_name, model_target_device, pythia_checkpoint, hf_access_token
+            model_name=model_name,
+            extractor_type_name=extractor_type_name,
+            model_target_device=model_target_device,
+            pythia_checkpoint=pythia_checkpoint,
+            hf_access_token=hf_access_token,
         )
 
         if "pythia" in self.model_name:
@@ -154,12 +159,17 @@ class SoftCatWholeCtxSurpExtractor(SoftCatCtxSurpExtractor):
     def __init__(
         self,
         model_name: str,
+        extractor_type_name: str,
         model_target_device: str = "cpu",
         pythia_checkpoint: str | None = "step143000",
         hf_access_token: str | None = None,
     ):
         super().__init__(
-            model_name, model_target_device, pythia_checkpoint, hf_access_token
+            model_name,
+            extractor_type_name,
+            model_target_device,
+            pythia_checkpoint,
+            hf_access_token,
         )
 
     def _get_embedded_left_context(self, left_context_text: str, device: str):
@@ -192,12 +202,17 @@ class SoftCatSentencesSurpExtractor(SoftCatCtxSurpExtractor):
     def __init__(
         self,
         model_name: str,
+        extractor_type_name: str,
         model_target_device: str = "cpu",
         pythia_checkpoint: str | None = "step143000",
         hf_access_token: str | None = None,
     ):
         super().__init__(
-            model_name, model_target_device, pythia_checkpoint, hf_access_token
+            model_name,
+            extractor_type_name,
+            model_target_device,
+            pythia_checkpoint,
+            hf_access_token,
         )
         self.spacy_module = spacy.load("en_core_web_sm")
 

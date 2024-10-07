@@ -47,16 +47,23 @@ def get_surprisal(
     3    you?   3.704563
     """
 
-    probs, offset_mapping = surp_extractor.surprise(
-        target_text=target_text,
-        left_context_text=left_context_text,
-        overlap_size=overlap_size,
-    )
+    if surp_extractor.extractor_type_name != SurpExtractorType.PIMENTEL_CTX_LEFT.value:
+        probs, offset_mapping = surp_extractor.surprise(
+            target_text=target_text,
+            left_context_text=left_context_text,
+            overlap_size=overlap_size,
+        )
 
-    dataframe_probs = pd.DataFrame(
-        string_to_log_probs(target_text, probs, offset_mapping)[1],
-        columns=["Word", "Surprisal"],
-    )
+        dataframe_probs = pd.DataFrame(
+            string_to_log_probs(target_text, probs, offset_mapping)[1],
+            columns=["Word", "Surprisal"],
+        )
+    else:
+        dataframe_probs = surp_extractor.surprise(
+            target_text=target_text,
+            left_context_text=left_context_text,
+            overlap_size=overlap_size,
+        )
     # assert there are no NaN values
     assert (
         not dataframe_probs.isnull().values.any()
@@ -95,32 +102,32 @@ def get_frequency(text: str) -> pd.DataFrame:
             -np.log2(word_frequency(word, lang="en", minimum=1e-11)) for word in words
         ],  # minimum equal to ~36.5
     }
-    # TODO improve loading of file according to https://stackoverflow.com/questions/6028000/how-to-read-a-static-file-from-inside-a-python-package
-    #  and https://setuptools.pypa.io/en/latest/userguide/datafiles.html
-    data = pkg_resources.resource_stream(
-        __name__, "data/SUBTLEXus74286wordstextversion_lower.tsv"
-    )
-    subtlex = pd.read_csv(
-        data,
-        sep="\t",
-        index_col=0,
-    )
-    subtlex["Frequency"] = -np.log2(subtlex["Count"] / subtlex.sum().iloc[0])
+    # # TODO improve loading of file according to https://stackoverflow.com/questions/6028000/how-to-read-a-static-file-from-inside-a-python-package
+    # #  and https://setuptools.pypa.io/en/latest/userguide/datafiles.html
+    # data = pkg_resources.resource_stream(
+    #     __name__, "data/SUBTLEXus74286wordstextversion_lower.tsv"
+    # )
+    # subtlex = pd.read_csv(
+    #     data,
+    #     sep="\t",
+    #     index_col=0,
+    # )
+    # subtlex["Frequency"] = -np.log2(subtlex["Count"] / subtlex.sum().iloc[0])
 
-    #  TODO subtlex freq should be 'inf' if missing, not zero?
-    subtlex_freqs = []
-    for word in words:
-        tokens = tokenize(word, lang="en")
-        one_over_result = 0.0
-        try:
-            for token in tokens:
-                one_over_result += 1.0 / subtlex.loc[token, "Frequency"]
-        except KeyError:
-            subtlex_freq = 0
-        else:
-            subtlex_freq = 1.0 / one_over_result if one_over_result != 0 else 0
-        subtlex_freqs.append(subtlex_freq)
-    frequencies["subtlex_Frequency"] = subtlex_freqs
+    # #  TODO subtlex freq should be 'inf' if missing, not zero?
+    # subtlex_freqs = []
+    # for word in words:
+    #     tokens = tokenize(word, lang="en")
+    #     one_over_result = 0.0
+    #     try:
+    #         for token in tokens:
+    #             one_over_result += 1.0 / subtlex.loc[token, "Frequency"]
+    #     except KeyError:
+    #         subtlex_freq = 0
+    #     else:
+    #         subtlex_freq = 1.0 / one_over_result if one_over_result != 0 else 0
+    #     subtlex_freqs.append(subtlex_freq)
+    # frequencies["subtlex_Frequency"] = subtlex_freqs
 
     return pd.DataFrame(frequencies)
 
@@ -250,19 +257,19 @@ def get_metrics(
 
 
 if __name__ == "__main__":
-    text = "Hi, my name is John. I like to eat apples."
+    text = "Hi, my name is John. I like playing sports."
     # pythia 70m
     model_name = "EleutherAI/pythia-70m"
     surp_extractor = get_surp_extractor(
         model_name=model_name,
-        extractor_type=SurpExtractorType.SOFT_CAT_WHOLE_CTX_LEFT,
+        extractor_type=SurpExtractorType.PIMENTEL_CTX_LEFT,
     )
     metrics = get_metrics(
         target_text=text,
         surp_extractor=surp_extractor,
         parsing_model=None,
         parsing_mode=None,
-        # left_context_text="Read carefully:",
+        left_context_text="Read carefully:",
         add_parsing_features=False,
         overlap_size=512,
     )
