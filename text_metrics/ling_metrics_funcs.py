@@ -9,6 +9,10 @@ from text_metrics.surprisal_extractors.base_extractor import BaseSurprisalExtrac
 
 from text_metrics.utils import get_parsing_features, string_to_log_probs, clean_text
 from wordfreq import tokenize, word_frequency
+from text_metrics.surprisal_extractors.extractor_switch import (
+    SurpExtractorType,
+    get_surp_extractor,
+)
 
 
 # Credits: https://github.com/byungdoh/llm_surprisal/blob/eacl24/get_llm_surprisal.py
@@ -57,8 +61,8 @@ def get_surprisal(
     assert (
         not dataframe_probs.isnull().values.any()
     ), "There are NaN values in the dataframe."
-    assert len(dataframe_probs) == len(
-        target_text.split()
+    assert (
+        len(dataframe_probs) == len(target_text.split())
     ), "The number of words in the surprisal dataframe does not match the number of words in the text."
     return dataframe_probs
 
@@ -243,3 +247,23 @@ def get_metrics(
         merged_df = merged_df.join(parsing_features)
 
     return merged_df
+
+
+if __name__ == "__main__":
+    text = "Hi, my name is John. I like to eat apples."
+    # pythia 70m
+    model_name = "EleutherAI/pythia-70m"
+    surp_extractor = get_surp_extractor(
+        model_name=model_name,
+        extractor_type=SurpExtractorType.SOFT_CAT_WHOLE_CTX_LEFT,
+    )
+    metrics = get_metrics(
+        target_text=text,
+        surp_extractor=surp_extractor,
+        parsing_model=None,
+        parsing_mode=None,
+        # left_context_text="Read carefully:",
+        add_parsing_features=False,
+        overlap_size=512,
+    )
+    print(metrics)
