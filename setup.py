@@ -1,14 +1,15 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 # TODO improve with https://python-poetry.org/
 setup(
     name="text_metrics",
     version="1.1.2",
-    packages=[
-        "text_metrics",
-        "text_metrics.surprisal_extractors",
-        "text_metrics.pimentel_word_prob",
-    ],
+    packages=find_packages("text_metrics/*"),
+    # [
+    #     "text_metrics",
+    #     "text_metrics.surprisal_extractors",
+    #     "text_metrics.pimentel_word_prob",
+    # ],
     url="https://github.com/lacclab/text-metrics",
     license="",
     author="Omer Shubi",
