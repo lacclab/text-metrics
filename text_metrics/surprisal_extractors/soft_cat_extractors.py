@@ -129,7 +129,7 @@ class SoftCatCtxSurpExtractor(BaseSurprisalExtractor):
             return self.surprise_target_only(target_text)
 
         with torch.no_grad():
-            target_text = " " + target_text.strip()
+            left_context_text = left_context_text.strip() + " "
             target_encodings, target_labels, target_offset_mappings = (
                 self._eoncode_target_text(target_text)
             )
@@ -189,7 +189,6 @@ class SoftCatWholeCtxSurpExtractor(SoftCatCtxSurpExtractor):
 
 
 class SoftCatSentencesSurpExtractor(SoftCatCtxSurpExtractor):
-    #! This doesn't work
     def __init__(
         self,
         model_name: str,

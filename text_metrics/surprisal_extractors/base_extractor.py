@@ -187,9 +187,7 @@ class BaseSurprisalExtractor:
     ) -> Tuple[np.ndarray, List[Tuple[int]]]:
         if allow_overlap:
             assert overlap_size is not None, "overlap_size must be specified"
-        full_context = (
-            " " + target_text
-        )  # even if there isn't left context, we add a space at the beginning to make sure this word is tokenized as the same token always
+        full_context = target_text  # even if there isn't left context, we add a space at the beginning to make sure this word is tokenized as the same token always
 
         with torch.no_grad():
             try:
