@@ -4,7 +4,11 @@ from setuptools import setup
 setup(
     name="text_metrics",
     version="1.1.2",
-    packages=["text_metrics", "text_metrics.surprisal_extractors"],
+    packages=[
+        "text_metrics",
+        "text_metrics.surprisal_extractors",
+        "text_metrics.pimentel_word_prob",
+    ],
     url="https://github.com/lacclab/text-metrics",
     license="",
     author="Omer Shubi",
