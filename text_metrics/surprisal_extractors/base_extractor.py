@@ -218,16 +218,3 @@ class BaseSurprisalExtractor:
         assert all_log_probs.shape[0] == len(offset_mapping)
 
         return all_log_probs, offset_mapping
-
-
-class SoftCatCtxSentAggSurpExtractor(BaseSurprisalExtractor):
-    def process(self, data):
-        return f"Processing data in Mode 3: {data}"
-
-
-# # Mapping the enum to the corresponding classes
-# mode_to_class_map = {
-#     ProcessingMode.CONCAT_CTX_LEFT: CatCtxLeftSurpExtractor,
-#     ProcessingMode.SOFT_CONCAT_CTX_AGG: SoftCatCtxAggSurpExtractor,
-#     ProcessingMode.SOFT_CONCAT_CTX_SENT_AGG: SoftCatCtxSentAggSurpExtractor,
-# }
