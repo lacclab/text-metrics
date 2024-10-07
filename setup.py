@@ -4,14 +4,7 @@ from setuptools import setup, find_packages
 setup(
     name="text_metrics",
     version="1.1.2",
-    packages=[
-        "text_metrics",
-        "text_metrics.surprisal_extractors",
-        # "text_metrics.pimentel_word_prob",
-        "text_metrics.pimentel_word_prob.wordsprobability",
-        "text_metrics.pimentel_word_prob.wordsprobability.models",
-        "text_metrics.pimentel_word_prob.wordsprobability.utils",
-    ],
+    packages=find_packages(),
     url="https://github.com/lacclab/text-metrics",
     license="",
     author="Omer Shubi",
