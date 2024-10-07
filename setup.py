@@ -7,6 +7,7 @@ setup(
     packages=[
         "text_metrics",
         "text_metrics.surprisal_extractors",
+        "text_metrics.pimentel_word_prob",
     ],
     url="https://github.com/lacclab/text-metrics",
     license="",
