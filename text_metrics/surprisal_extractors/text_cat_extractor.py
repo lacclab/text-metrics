@@ -48,7 +48,7 @@ class CatCtxLeftSurpExtractor(BaseSurprisalExtractor):
 
         target_text_offset_mapping = offset_mapping[offset_mapping_first_index:]
         target_text_offset_mapping = [
-            (i - target_text_char_onset + 1, j - target_text_char_onset + 1)
+            (i - target_text_char_onset, j - target_text_char_onset)
             for i, j in target_text_offset_mapping
         ]
 
