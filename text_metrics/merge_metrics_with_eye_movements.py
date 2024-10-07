@@ -270,7 +270,7 @@ def extract_metrics_for_text_df_multiple_hf_models(
     text_col_name: str,
     text_key_cols: List[str],
     surprisal_extraction_model_names: List[str],
-    surp_extractor_type: extractor_switch.SurpExtractorType = extractor_switch.SurpExtractorType.CAT_CTX_LEFT,
+    surp_extractor_type: extractor_switch.SurpExtractorType,
     add_parsing_features: bool = True,
     parsing_mode: (
         Literal["keep-first", "keep-all", "re-tokenize"] | None
