@@ -179,10 +179,7 @@ def extract_metrics_for_text_df(
     text_key_cols: List[str],
     surp_extractor: base_extractor.BaseSurprisalExtractor,
     ordered_prefix_col_names: List[str] = [],
-    keep_prefix_metrics: bool | List[str] = False,
     ordered_suffix_col_names: List[str] = [],
-    keep_suffix_metrics: bool | List[str] = False,
-    rebase_index_in_main_text: bool = False,
     get_metrics_kwargs: dict | None = None,
 ) -> pd.DataFrame:
     """This function extracts word level characteristics
@@ -250,6 +247,7 @@ def extract_metrics_for_text_df(
             prefix_text = ""
 
         # add here new metrics
+        #! Note that for now, the get metrics function can accept only left context
         merged_df = get_metrics(
             target_text=main_text.strip(),
             left_context_text=prefix_text,
@@ -290,6 +288,8 @@ def extract_metrics_for_text_df_multiple_hf_models(
         text_key_cols (List[str]): The columns in text_df that identify the text
         surprisal_extraction_model_names (List[str]): The name of the models to extract surprisal
             values from
+        surp_extractor_type (extractor_switch.SurpExtractorType): The type of surprisal
+            extractor to use (e.g. CAT_CTX_LEFT, SOFT_CAT_SENTENCES)
         add_parsing_features (bool, optional): If True, parsing features will be added to the
             extracted metrics. Defaults to True.
         parsing_mode (Literal[&quot;keep): Type of parsing to use. one of
@@ -300,7 +300,7 @@ def extract_metrics_for_text_df_multiple_hf_models(
         hf_access_token (str, optional): A huggingface access token. Defaults to None.
         extract_metrics_for_text_df_kwargs (dict | None, optional): A dict of additional keyword
             arguments for the extract_metrics_for_text_df function. Defaults to None.
-
+        
     Returns:
         pd.DataFrame: A dataframe with the extracted metrics, now instead of each row being a
             whole text, each row is a word in the text. The columns are the main text
