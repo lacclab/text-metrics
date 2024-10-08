@@ -1,4 +1,22 @@
 from setuptools import setup, find_packages
+from setuptools.command.install import install
+import subprocess
+import os
+
+
+class CustomInstallCommand(install):
+    """Custom command to initialize submodules before installation."""
+
+    def run(self):
+        # Ensure we are in the root directory of the project
+        project_root = os.path.abspath(os.path.dirname(__file__))
+        # Run git submodule update --init --recursive
+        subprocess.check_call(
+            ["git", "submodule", "update", "--init", "--recursive"], cwd=project_root
+        )
+        # Proceed with the standard installation
+        install.run(self)
+
 
 # TODO improve with https://python-poetry.org/
 setup(
@@ -13,6 +31,9 @@ setup(
         # "text_metrics.pimentel_word_prob.wordsprobability.models",
         # "text_metrics.pimentel_word_prob.wordsprobability.utils",
     ],
+    cmdclass={
+        "install": CustomInstallCommand,
+    },
     url="https://github.com/lacclab/text-metrics",
     license="",
     author="Omer Shubi",
