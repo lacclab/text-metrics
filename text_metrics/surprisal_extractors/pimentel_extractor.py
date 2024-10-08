@@ -134,7 +134,7 @@ class PimentelSurpExtractor(CatCtxLeftSurpExtractor):
 
         if left_context_text is not None and len(left_context_text) > 0:
             # remove the records that are not part of the target text
-            left_ctx_len_in_words = len(left_context_text.split()) - 1
+            left_ctx_len_in_words = len(left_context_text.split())
             dataframe_surps = dataframe_surps.iloc[left_ctx_len_in_words:]
 
         return dataframe_surps.reset_index(drop=True)

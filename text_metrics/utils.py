@@ -487,11 +487,17 @@ def remove_redundant_left_context(
         target_text (str): _description_
         left_context_text (str): _description_
     """
-    # remove words fron left_context_text until the total length of the context is less than max_ctx_in_tokens
-    left_context_tokens = tokenizer.encode(left_context_text)
-    while len(left_context_tokens) > max_ctx_in_tokens:
-        left_context_tokens.pop(0)
-    return tokenizer.decode(left_context_tokens)
+    # Split the left context into words
+    words = left_context_text.split()
+
+    # Remove words from the left context until the number of tokens is within the limit
+    while len(tokenizer.encode(" ".join(words))) > max_ctx_in_tokens:
+        words.pop(0)
+
+    # Join the remaining words to form the trimmed text
+    trimmed_left_context = " ".join(words)
+
+    return trimmed_left_context
 
 
 # if __name__ == "__main__":
