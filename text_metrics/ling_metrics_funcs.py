@@ -3,12 +3,11 @@ from typing import Literal
 
 import numpy as np
 import pandas as pd
-import pkg_resources
 import spacy
 from text_metrics.surprisal_extractors.base_extractor import BaseSurprisalExtractor
 
 from text_metrics.utils import get_parsing_features, string_to_log_probs, clean_text
-from wordfreq import tokenize, word_frequency
+from wordfreq import word_frequency
 from text_metrics.surprisal_extractors.extractor_switch import (
     SurpExtractorType,
     get_surp_extractor,
@@ -257,19 +256,22 @@ def get_metrics(
 
 
 if __name__ == "__main__":
-    text = "Hi, my name is John. I like playing sports."
+    text = 'But the prospect of driverless cars replacing human-driven taxis has been the cause of some alarm. "If you get rid of the driver, then they\'re unemployed," said Dennis Conyon, the south- east director for the UK National Taxi Association. "It would have a major impact on the labor force." London has about 22,000 licensed cabs and Conyon estimates that the total number of people who drive taxis for hire in the UK is about 100,000.'
+    # text = "Many of us know we don't get enough sleep, but imagine if there was a simple solution: getting up later. In a speech at the British Science Festival, Dr. Paul Kelley from Oxford University said schools should stagger their starting times to work with the natural rhythms of their students. This would improve exam results and students' health (lack of sleep can cause diabetes, depression, obesity and other health problems)."
+
     # pythia 70m
     model_name = "EleutherAI/pythia-70m"
     surp_extractor = get_surp_extractor(
         model_name=model_name,
-        extractor_type=SurpExtractorType.PIMENTEL_CTX_LEFT,
+        extractor_type=SurpExtractorType.SOFT_CAT_WHOLE_CTX_LEFT,
     )
     metrics = get_metrics(
         target_text=text,
         surp_extractor=surp_extractor,
         parsing_model=None,
         parsing_mode=None,
-        left_context_text="Read carefully:",
+        left_context_text="The number of taxi drivers in London is ...",
+        # left_context_text="What does Dr. Kelley suggest about the current starting time for schools?",
         add_parsing_features=False,
         overlap_size=512,
     )
