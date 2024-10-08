@@ -3,6 +3,7 @@ from text_metrics.surprisal_extractors.soft_cat_extractors import (
     SoftCatSentencesSurpExtractor,
 )
 from text_metrics.surprisal_extractors.text_cat_extractor import CatCtxLeftSurpExtractor
+from text_metrics.surprisal_extractors.pimentel_extractor import PimentelSurpExtractor
 from enum import Enum
 
 
@@ -30,6 +31,8 @@ class SurpExtractorType(Enum):
 
     CAT_CTX_LEFT = "CatCtxLeftSurpExtractor"
 
+    PIMENTEL_CTX_LEFT = "PimentelSurpExtractor"
+
 
 def get_surp_extractor(
     extractor_type: SurpExtractorType,
@@ -40,15 +43,35 @@ def get_surp_extractor(
 ):
     if extractor_type.value == SurpExtractorType.SOFT_CAT_WHOLE_CTX_LEFT.value:
         return SoftCatWholeCtxSurpExtractor(
-            model_name, model_target_device, pythia_checkpoint, hf_access_token
+            model_name,
+            extractor_type.value,
+            model_target_device,
+            pythia_checkpoint,
+            hf_access_token,
         )
     elif extractor_type.value == SurpExtractorType.SOFT_CAT_SENTENCES.value:
         return SoftCatSentencesSurpExtractor(
-            model_name, model_target_device, pythia_checkpoint, hf_access_token
+            model_name,
+            extractor_type.value,
+            model_target_device,
+            pythia_checkpoint,
+            hf_access_token,
         )
     elif extractor_type.value == SurpExtractorType.CAT_CTX_LEFT.value:
         return CatCtxLeftSurpExtractor(
-            model_name, model_target_device, pythia_checkpoint, hf_access_token
+            model_name,
+            extractor_type.value,
+            model_target_device,
+            pythia_checkpoint,
+            hf_access_token,
+        )
+    elif extractor_type.value == SurpExtractorType.PIMENTEL_CTX_LEFT.value:
+        return PimentelSurpExtractor(
+            model_name,
+            extractor_type.value,
+            model_target_device,
+            pythia_checkpoint,
+            hf_access_token,
         )
     else:
         raise ValueError(f"Unrecognized extractor type: {extractor_type}")

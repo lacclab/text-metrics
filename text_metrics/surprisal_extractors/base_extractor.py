@@ -16,10 +16,12 @@ class BaseSurprisalExtractor:
     def __init__(
         self,
         model_name: str,
+        extractor_type_name: str,
         model_target_device: str = "cpu",
         pythia_checkpoint: str | None = "step143000",
         hf_access_token: str | None = None,
     ):
+        self.extractor_type_name = extractor_type_name
         self.tokenizer, self.model = init_tok_n_model(
             model_name=model_name,
             device=model_target_device,

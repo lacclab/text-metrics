@@ -3,12 +3,11 @@ from typing import Literal
 
 import numpy as np
 import pandas as pd
-import pkg_resources
 import spacy
 from text_metrics.surprisal_extractors.base_extractor import BaseSurprisalExtractor
 
 from text_metrics.utils import get_parsing_features, string_to_log_probs, clean_text
-from wordfreq import tokenize, word_frequency
+from wordfreq import word_frequency
 from text_metrics.surprisal_extractors.extractor_switch import (
     SurpExtractorType,
     get_surp_extractor,
@@ -47,16 +46,23 @@ def get_surprisal(
     3    you?   3.704563
     """
 
-    probs, offset_mapping = surp_extractor.surprise(
-        target_text=target_text,
-        left_context_text=left_context_text,
-        overlap_size=overlap_size,
-    )
+    if surp_extractor.extractor_type_name != SurpExtractorType.PIMENTEL_CTX_LEFT.value:
+        probs, offset_mapping = surp_extractor.surprise(
+            target_text=target_text,
+            left_context_text=left_context_text,
+            overlap_size=overlap_size,
+        )
 
-    dataframe_probs = pd.DataFrame(
-        string_to_log_probs(target_text, probs, offset_mapping)[1],
-        columns=["Word", "Surprisal"],
-    )
+        dataframe_probs = pd.DataFrame(
+            string_to_log_probs(target_text, probs, offset_mapping)[1],
+            columns=["Word", "Surprisal"],
+        )
+    else:
+        dataframe_probs = surp_extractor.surprise(
+            target_text=target_text,
+            left_context_text=left_context_text,
+            overlap_size=overlap_size,
+        )
     # assert there are no NaN values
     assert (
         not dataframe_probs.isnull().values.any()
@@ -95,32 +101,32 @@ def get_frequency(text: str) -> pd.DataFrame:
             -np.log2(word_frequency(word, lang="en", minimum=1e-11)) for word in words
         ],  # minimum equal to ~36.5
     }
-    # TODO improve loading of file according to https://stackoverflow.com/questions/6028000/how-to-read-a-static-file-from-inside-a-python-package
-    #  and https://setuptools.pypa.io/en/latest/userguide/datafiles.html
-    data = pkg_resources.resource_stream(
-        __name__, "data/SUBTLEXus74286wordstextversion_lower.tsv"
-    )
-    subtlex = pd.read_csv(
-        data,
-        sep="\t",
-        index_col=0,
-    )
-    subtlex["Frequency"] = -np.log2(subtlex["Count"] / subtlex.sum().iloc[0])
+    # # TODO improve loading of file according to https://stackoverflow.com/questions/6028000/how-to-read-a-static-file-from-inside-a-python-package
+    # #  and https://setuptools.pypa.io/en/latest/userguide/datafiles.html
+    # data = pkg_resources.resource_stream(
+    #     __name__, "data/SUBTLEXus74286wordstextversion_lower.tsv"
+    # )
+    # subtlex = pd.read_csv(
+    #     data,
+    #     sep="\t",
+    #     index_col=0,
+    # )
+    # subtlex["Frequency"] = -np.log2(subtlex["Count"] / subtlex.sum().iloc[0])
 
-    #  TODO subtlex freq should be 'inf' if missing, not zero?
-    subtlex_freqs = []
-    for word in words:
-        tokens = tokenize(word, lang="en")
-        one_over_result = 0.0
-        try:
-            for token in tokens:
-                one_over_result += 1.0 / subtlex.loc[token, "Frequency"]
-        except KeyError:
-            subtlex_freq = 0
-        else:
-            subtlex_freq = 1.0 / one_over_result if one_over_result != 0 else 0
-        subtlex_freqs.append(subtlex_freq)
-    frequencies["subtlex_Frequency"] = subtlex_freqs
+    # #  TODO subtlex freq should be 'inf' if missing, not zero?
+    # subtlex_freqs = []
+    # for word in words:
+    #     tokens = tokenize(word, lang="en")
+    #     one_over_result = 0.0
+    #     try:
+    #         for token in tokens:
+    #             one_over_result += 1.0 / subtlex.loc[token, "Frequency"]
+    #     except KeyError:
+    #         subtlex_freq = 0
+    #     else:
+    #         subtlex_freq = 1.0 / one_over_result if one_over_result != 0 else 0
+    #     subtlex_freqs.append(subtlex_freq)
+    # frequencies["subtlex_Frequency"] = subtlex_freqs
 
     return pd.DataFrame(frequencies)
 
@@ -250,7 +256,9 @@ def get_metrics(
 
 
 if __name__ == "__main__":
-    text = "Hi, my name is John. I like to eat apples."
+    text = 'But the prospect of driverless cars replacing human-driven taxis has been the cause of some alarm. "If you get rid of the driver, then they\'re unemployed," said Dennis Conyon, the south- east director for the UK National Taxi Association. "It would have a major impact on the labor force." London has about 22,000 licensed cabs and Conyon estimates that the total number of people who drive taxis for hire in the UK is about 100,000.'
+    # text = "Many of us know we don't get enough sleep, but imagine if there was a simple solution: getting up later. In a speech at the British Science Festival, Dr. Paul Kelley from Oxford University said schools should stagger their starting times to work with the natural rhythms of their students. This would improve exam results and students' health (lack of sleep can cause diabetes, depression, obesity and other health problems)."
+
     # pythia 70m
     model_name = "EleutherAI/pythia-70m"
     surp_extractor = get_surp_extractor(
@@ -262,7 +270,8 @@ if __name__ == "__main__":
         surp_extractor=surp_extractor,
         parsing_model=None,
         parsing_mode=None,
-        # left_context_text="Read carefully:",
+        left_context_text="The number of taxi drivers in London is ...",
+        # left_context_text="What does Dr. Kelley suggest about the current starting time for schools?",
         add_parsing_features=False,
         overlap_size=512,
     )

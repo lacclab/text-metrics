@@ -1,10 +1,19 @@
 from setuptools import setup
 
+
 # TODO improve with https://python-poetry.org/
 setup(
     name="text_metrics",
     version="1.1.2",
-    packages=["text_metrics", "text_metrics.surprisal_extractors"],
+    packages=[
+        "text_metrics",
+        "text_metrics.surprisal_extractors",
+        # pimentel_word_prob is a submodule of text_metrics
+        "text_metrics.pimentel_word_prob",
+        "text_metrics.pimentel_word_prob.wordsprobability",
+        "text_metrics.pimentel_word_prob.wordsprobability.models",
+        "text_metrics.pimentel_word_prob.wordsprobability.utils",
+    ],
     url="https://github.com/lacclab/text-metrics",
     license="",
     author="Omer Shubi",
