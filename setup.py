@@ -15,6 +15,11 @@ class CustomInstallCommand(install):
             ["git", "submodule", "update", "--init", "--recursive", "--verbose"],
             cwd=project_root,
         )
+
+        # add "echo hihihihi"
+        subprocess.check_call(
+            ["echo", "hihihihi"],
+        )
         # Proceed with the standard installation
         install.run(self)
 
