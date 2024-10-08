@@ -90,7 +90,7 @@ class PimentelSurpExtractor(CatCtxLeftSurpExtractor):
             except AttributeError:
                 max_ctx = int(1e6)
 
-            if left_context_text is not None or len(left_context_text) > 0:
+            if left_context_text is not None and len(left_context_text) > 0:
                 # than the max context, we remove the redundant left context tokens that cannot be used in-context with the target text
                 left_context_text = remove_redundant_left_context(
                     self.tokenizer,
@@ -132,7 +132,7 @@ class PimentelSurpExtractor(CatCtxLeftSurpExtractor):
             columns={"word": "Word", "surprisal": "Surprisal"}, inplace=True
         )
 
-        if left_context_text is not None or len(left_context_text) > 0:
+        if left_context_text is not None and len(left_context_text) > 0:
             # remove the records that are not part of the target text
             left_ctx_len_in_words = len(left_context_text.split())
             dataframe_surps = dataframe_surps.iloc[left_ctx_len_in_words:]
