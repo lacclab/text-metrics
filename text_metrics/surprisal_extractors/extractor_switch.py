@@ -4,34 +4,8 @@ from text_metrics.surprisal_extractors.soft_cat_extractors import (
 )
 from text_metrics.surprisal_extractors.text_cat_extractor import CatCtxLeftSurpExtractor
 from text_metrics.surprisal_extractors.pimentel_extractor import PimentelSurpExtractor
-from enum import Enum
-
-
-class SurpExtractorType(Enum):
-    # left context: l, target context: t
-    # '*' - concat
-
-    """
-    l_rep = averaged_representations(l)
-    full_context = l_rep * t
-    Dimensionsof the embedding level input: (1 + No. tokens in t, hidden_size)
-    """
-
-    SOFT_CAT_WHOLE_CTX_LEFT = "SoftCatWholeCtxSurpExtractor"
-
-    """
-    l_sentences = concat([averaged_representations(sentence) for sentence in l])
-    full_context = l_sentences * t 
-    Dimensionsof the embedding level input: (No. sentences in L + No. tokens in t, hidden_size)
-    """
-
-    SOFT_CAT_SENTENCES = "SoftCatSentencesSurpExtractor"
-
-    """full_context = l * t"""
-
-    CAT_CTX_LEFT = "CatCtxLeftSurpExtractor"
-
-    PIMENTEL_CTX_LEFT = "PimentelSurpExtractor"
+from text_metrics.surprisal_extractors.inv_effect_extractor import InvEffectExtractor
+from text_metrics.surprisal_extractors.extractors_constants import SurpExtractorType
 
 
 def get_surp_extractor(
@@ -72,6 +46,15 @@ def get_surp_extractor(
             model_target_device,
             pythia_checkpoint,
             hf_access_token,
+        )
+    elif extractor_type.value == SurpExtractorType.INV_EFFECT_EXTRACTOR.value:
+        return InvEffectExtractor(
+            model_name=model_name,
+            extractor_type_name=extractor_type.value,
+            model_target_device=model_target_device,
+            pythia_checkpoint=pythia_checkpoint,
+            hf_access_token=hf_access_token,
+            target_extractor_type=SurpExtractorType.CAT_CTX_LEFT,
         )
     else:
         raise ValueError(f"Unrecognized extractor type: {extractor_type}")

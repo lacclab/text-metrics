@@ -8,8 +8,8 @@ from text_metrics.surprisal_extractors.base_extractor import BaseSurprisalExtrac
 
 from text_metrics.utils import get_parsing_features, string_to_log_probs, clean_text
 from wordfreq import word_frequency
+from text_metrics.surprisal_extractors.extractors_constants import SurpExtractorType
 from text_metrics.surprisal_extractors.extractor_switch import (
-    SurpExtractorType,
     get_surp_extractor,
 )
 import matplotlib
@@ -264,7 +264,7 @@ if __name__ == "__main__":
     Conyon estimates that the total number of people who drive taxis for hire in the UK is about 100,000.""".replace(
         "\n", " "
     ).replace("    ", "")
-    question = "Question: The number of taxi drivers in London is ... Paragraph:"
+    question = "The number of taxi drivers in London is ..."
 
     # text = """Many of us know we don't get enough sleep, but imagine if there was a simple solution:
     # getting up later. In a speech at the British Science Festival, Dr. Paul Kelley from Oxford University
@@ -276,8 +276,24 @@ if __name__ == "__main__":
     # )
 
     # pythia 70m
-    model_name = "EleutherAI/pythia-6.9b"
+    model_name = "EleutherAI/pythia-70m"
+    surp_extractor = get_surp_extractor(
+        extractor_type=SurpExtractorType.INV_EFFECT_EXTRACTOR, model_name=model_name
+    )
+    q = question
 
+    metrics = get_metrics(
+        target_text=text,
+        surp_extractor=surp_extractor,
+        parsing_model=None,
+        parsing_mode=None,
+        left_context_text=q,
+        add_parsing_features=False,
+        overlap_size=512,
+    )
+    
+    print(metrics)
+    #------------------------------------------------------------------
     metrics_df = None
     extractor_type_lst = [
         SurpExtractorType.CAT_CTX_LEFT,  #! Fixed! don't remove!
