@@ -12,6 +12,7 @@ from text_metrics.surprisal_extractors.extractor_switch import (
     SurpExtractorType,
     get_surp_extractor,
 )
+import matplotlib
 
 
 # Credits: https://github.com/byungdoh/llm_surprisal/blob/eacl24/get_llm_surprisal.py
@@ -256,23 +257,88 @@ def get_metrics(
 
 
 if __name__ == "__main__":
-    text = 'But the prospect of driverless cars replacing human-driven taxis has been the cause of some alarm. "If you get rid of the driver, then they\'re unemployed," said Dennis Conyon, the south- east director for the UK National Taxi Association. "It would have a major impact on the labor force." London has about 22,000 licensed cabs and Conyon estimates that the total number of people who drive taxis for hire in the UK is about 100,000.'
-    # text = "Many of us know we don't get enough sleep, but imagine if there was a simple solution: getting up later. In a speech at the British Science Festival, Dr. Paul Kelley from Oxford University said schools should stagger their starting times to work with the natural rhythms of their students. This would improve exam results and students' health (lack of sleep can cause diabetes, depression, obesity and other health problems)."
+    text = """'But the prospect of driverless cars replacing human-driven taxis has
+    been the cause of some alarm. "If you get rid of the driver, then they\'re unemployed,"
+    said Dennis Conyon, the south- east director for the UK National Taxi Association. "It
+    would have a major impact on the labor force." London has about 22,000 licensed cabs and
+    Conyon estimates that the total number of people who drive taxis for hire in the UK is about 100,000.""".replace(
+        "\n", " "
+    ).replace("    ", "")
+    question = "Question: The number of taxi drivers in London is ... Paragraph:"
+
+    # text = """Many of us know we don't get enough sleep, but imagine if there was a simple solution:
+    # getting up later. In a speech at the British Science Festival, Dr. Paul Kelley from Oxford University
+    # said schools should stagger their starting times to work with the natural rhythms of their students.
+    # This would improve exam results and students' health (lack of sleep can cause diabetes, depression,
+    # obesity and other health problems).""".replace("\n", " ").replace("    ", "")
+    # question = (
+    #     "What does Dr. Kelley suggest about the current starting time for schools?"
+    # )
 
     # pythia 70m
-    model_name = "EleutherAI/pythia-70m"
-    surp_extractor = get_surp_extractor(
-        model_name=model_name,
-        extractor_type=SurpExtractorType.SOFT_CAT_WHOLE_CTX_LEFT,
+    model_name = "EleutherAI/pythia-6.9b"
+
+    metrics_df = None
+    extractor_type_lst = [
+        SurpExtractorType.CAT_CTX_LEFT,  #! Fixed! don't remove!
+        SurpExtractorType.CAT_CTX_LEFT,
+        SurpExtractorType.SOFT_CAT_WHOLE_CTX_LEFT,
+        SurpExtractorType.SOFT_CAT_SENTENCES,
+    ]
+    base_surp_lst = []
+    surp_lsts = []
+    surp_name_lsts = []
+    for i, extractor_type in enumerate(extractor_type_lst):
+        surp_extractor = get_surp_extractor(
+            model_name=model_name, extractor_type=extractor_type
+        )
+        q = question if i > 0 else None
+        metrics = get_metrics(
+            target_text=text,
+            surp_extractor=surp_extractor,
+            parsing_model=None,
+            parsing_mode=None,
+            left_context_text=q,
+            add_parsing_features=False,
+            overlap_size=512,
+        )
+        surp_col_name = f"{extractor_type.value}_{"Q_P" if i > 0 else "P"}_Surprisal"
+        metrics.rename(
+            columns={f"{model_name}_Surprisal": surp_col_name},
+            inplace=True,
+        )
+
+        if i == 0:
+            base_surp_lst = metrics[surp_col_name].values.tolist()
+        else:
+            curr_surp_lst = metrics[surp_col_name].values.tolist()
+            surp_lsts.append(
+                [
+                    curr_surp / base_surp
+                    for curr_surp, base_surp in zip(curr_surp_lst, base_surp_lst)
+                ]
+            )
+            surp_name_lsts.append(surp_col_name)
+
+        if metrics_df is None:
+            metrics_df = metrics
+        else:
+            # merge on index
+            columns_to_use = metrics.columns.difference(metrics_df.columns)
+            metrics_df = metrics_df.merge(
+                metrics[columns_to_use], left_index=True, right_index=True
+            )
+
+    from text_metrics.viz_text_heatmap import generate_html_for_texts
+
+    generate_html_for_texts(
+        titles=surp_name_lsts,
+        texts=[text] * len(surp_name_lsts),
+        weights_list=surp_lsts,
+        output_file_name="colorized_texts_w_surp.html",
+        color_normalizing_factor=2,
+        cmap=matplotlib.colormaps.get_cmap("coolwarm"),
+        additional_note="Question: " + question,
     )
-    metrics = get_metrics(
-        target_text=text,
-        surp_extractor=surp_extractor,
-        parsing_model=None,
-        parsing_mode=None,
-        left_context_text="The number of taxi drivers in London is ...",
-        # left_context_text="What does Dr. Kelley suggest about the current starting time for schools?",
-        add_parsing_features=False,
-        overlap_size=512,
-    )
-    print(metrics)
+
+    metrics_df.to_csv("metrics_df.csv", index=False)
