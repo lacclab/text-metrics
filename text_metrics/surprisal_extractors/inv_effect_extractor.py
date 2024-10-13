@@ -1,5 +1,8 @@
-from text_metrics.surprisal_extractors.extractors_constants import SurpExtractorType
+import pandas as pd
+
 from text_metrics.surprisal_extractors.base_extractor import BaseSurprisalExtractor
+from text_metrics.surprisal_extractors.extractors_constants import SurpExtractorType
+from text_metrics.utils import string_to_log_probs
 
 
 class InvEffectExtractor(BaseSurprisalExtractor):
@@ -52,13 +55,23 @@ class InvEffectExtractor(BaseSurprisalExtractor):
             allow_overlap=allow_overlap,
         )
 
-        surp_diff = other_surp[0] - baseline_surp[0]
-        # make all positive entries zero (surp_diff is a numpy array)
-        surp_diff[surp_diff > 0] = 0
-        # make all negative entries positive
-        surp_diff = -surp_diff
-        baseline_surp = list(baseline_surp)
-        baseline_surp[0] += surp_diff
-        baseline_surp = tuple(baseline_surp)
+        dataframe_probs_baseline = pd.DataFrame(
+            string_to_log_probs(target_text, baseline_surp[0], baseline_surp[1])[1],
+            columns=["Word", "Surprisal"],
+        )
 
-        return baseline_surp
+        dataframe_probs_other = pd.DataFrame(
+            string_to_log_probs(target_text, other_surp[0], other_surp[1])[1],
+            columns=["Word", "Surprisal"],
+        )
+
+        other_surp_col = dataframe_probs_other["Surprisal"]
+        baseline_surp_col = dataframe_probs_baseline["Surprisal"]
+
+        surp_diff = other_surp_col - baseline_surp_col
+        surp_diff[surp_diff > 0] = 0
+        surp_diff = -surp_diff
+        baseline_surp_col += surp_diff
+        dataframe_probs_baseline["Surprisal"] = baseline_surp_col
+
+        return dataframe_probs_baseline
