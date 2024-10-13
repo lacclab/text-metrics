@@ -6,6 +6,7 @@ from torch._tensor import Tensor
 from text_metrics.pimentel_word_prob.wordsprobability.main import agg_surprisal_per_word
 from text_metrics.pimentel_word_prob.wordsprobability.models import (
     get_model,
+    MODELS,
 )
 from text_metrics.pimentel_word_prob.wordsprobability.models.bow_lm import BaseBOWModel
 from text_metrics.surprisal_extractors.text_cat_extractor import CatCtxLeftSurpExtractor
@@ -36,7 +37,12 @@ class PimentelSurpExtractor(CatCtxLeftSurpExtractor):
             pythia_checkpoint,
             hf_access_token,
         )
-
+        if model_name not in MODELS:
+            raise ValueError(
+                f"""Model name {model_name} is currently not supported for PimentelSurpExtractor,
+                The supported models are: {list(MODELS.keys())}
+                """
+            )
         self.bow_model: BaseBOWModel = get_model(
             model_name=model_name, model=self.model, tokenizer=self.tokenizer
         )
