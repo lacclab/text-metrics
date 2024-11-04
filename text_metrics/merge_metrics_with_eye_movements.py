@@ -6,10 +6,12 @@ import tqdm
 import spacy
 from spacy.language import Language
 import torch
-from text_metrics.utils import break_down_p_id, add_col_not_num_or_punc
 from text_metrics.ling_metrics_funcs import get_metrics
-from text_metrics.surprisal_extractors import base_extractor
-from text_metrics.surprisal_extractors import extractor_switch
+from text_metrics.surprisal_extractors import (
+    base_extractor,
+    extractors_constants,
+    extractor_switch,
+)
 
 
 def create_text_input(
@@ -269,7 +271,7 @@ def extract_metrics_for_text_df_multiple_hf_models(
     text_col_name: str,
     text_key_cols: List[str],
     surprisal_extraction_model_names: List[str],
-    surp_extractor_type: extractor_switch.SurpExtractorType = extractor_switch.SurpExtractorType.CAT_CTX_LEFT,
+    surp_extractor_type: extractors_constants.SurpExtractorType = extractors_constants.SurpExtractorType.CAT_CTX_LEFT,
     add_parsing_features: bool = True,
     parsing_mode: (
         Literal["keep-first", "keep-all", "re-tokenize"] | None
@@ -289,7 +291,7 @@ def extract_metrics_for_text_df_multiple_hf_models(
         text_key_cols (List[str]): The columns in text_df that identify the text
         surprisal_extraction_model_names (List[str]): The name of the models to extract surprisal
             values from
-        surp_extractor_type (extractor_switch.SurpExtractorType): The type of surprisal
+        surp_extractor_type (extractors_constants.SurpExtractorType): The type of surprisal
             extractor to use (e.g. CAT_CTX_LEFT, SOFT_CAT_SENTENCES)
         add_parsing_features (bool, optional): If True, parsing features will be added to the
             extracted metrics. Defaults to True.
@@ -378,7 +380,7 @@ def add_metrics_to_eye_tracking(
     eye_tracking_data: pd.DataFrame,
     surprisal_extraction_model_names: List[str],
     spacy_model_name: str,
-    surp_extractor_type: extractor_switch.SurpExtractorType,
+    surp_extractor_type: extractors_constants.SurpExtractorType,
     parsing_mode: Literal["keep-first", "keep-all", "re-tokenize"],
     add_question_in_prompt: bool = False,
     model_target_device: str = "cpu",
@@ -558,7 +560,7 @@ if __name__ == "__main__":
     # et_data_enriched = add_metrics_to_eye_tracking(
     #     eye_tracking_data=et_data.copy(),
     #     surprisal_extraction_model_names=["EleutherAI/pythia-70m"],
-    #     surp_extractor_type=extractor_switch.SurpExtractorType.SOFT_CAT_SENTENCES,
+    #     surp_extractor_type=extractors_constants.SurpExtractorType.SOFT_CAT_SENTENCES,
     #     spacy_model_name="en_core_web_sm",
     #     parsing_mode="re-tokenize",
     #     add_question_in_prompt=True,
