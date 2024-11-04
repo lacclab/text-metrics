@@ -198,157 +198,16 @@ metrics = get_metrics(
 )
 ```
 
-will affect the surprisal estimates in the column `gpt2_Surprisal` the following way:
+will affect the surprisal estimates in the column `gpt2_Surprisal` the following way: (higher color intensity -> higher surprisal) 
 
 ###### Without Left Context
 
-<h4></h4>
-<span title="7.23" class="barcode" style="color: white; background-color: #2777b8; font-size:1em">&nbspMany&nbsp</span>
-<span title="1.77" class="barcode" style="color: black; background-color: #d4e4f4; font-size:1em">&nbspof&nbsp</span>
-<span title="1.57" class="barcode" style="color: black; background-color: #d8e7f5; font-size:1em">&nbspus&nbsp</span>
-<span title="3.44" class="barcode" style="color: black; background-color: #a8cee4; font-size:1em">&nbspknow&nbsp</span>
-<span title="5.35" class="barcode" style="color: black; background-color: #60a7d2; font-size:1em">&nbspwe&nbsp</span>
-<span title="3.43" class="barcode" style="color: black; background-color: #a9cfe5; font-size:1em">&nbspdon't&nbsp</span>
-<span title="3.34" class="barcode" style="color: black; background-color: #abd0e6; font-size:1em">&nbspget&nbsp</span>
-<span title="2.58" class="barcode" style="color: black; background-color: #c4daee; font-size:1em">&nbspenough&nbsp</span>
-<span title="3.18" class="barcode" style="color: black; background-color: #b0d2e7; font-size:1em">&nbspsleep,&nbsp</span>
-<span title="1.24" class="barcode" style="color: black; background-color: #dfebf7; font-size:1em">&nbspbut&nbsp</span>
-<span title="7.64" class="barcode" style="color: white; background-color: #1e6db2; font-size:1em">&nbspimagine&nbsp</span>
-<span title="1.32" class="barcode" style="color: black; background-color: #ddeaf7; font-size:1em">&nbspif&nbsp</span>
-<span title="3.49" class="barcode" style="color: black; background-color: #a6cee4; font-size:1em">&nbspthere&nbsp</span>
-<span title="1.07" class="barcode" style="color: black; background-color: #e2edf8; font-size:1em">&nbspwas&nbsp</span>
-<span title="0.72" class="barcode" style="color: black; background-color: #e9f2fa; font-size:1em">&nbspa&nbsp</span>
-<span title="5.21" class="barcode" style="color: black; background-color: #64a9d3; font-size:1em">&nbspsimple&nbsp</span>
-<span title="4.42" class="barcode" style="color: black; background-color: #82bbdb; font-size:1em">&nbspsolution:&nbsp</span>
-<span title="7.02" class="barcode" style="color: white; background-color: #2e7ebc; font-size:1em">&nbspgetting&nbsp</span>
-<span title="2.56" class="barcode" style="color: black; background-color: #c4daee; font-size:1em">&nbspup&nbsp</span>
-<span title="7.29" class="barcode" style="color: white; background-color: #2676b8; font-size:1em">&nbsplater.&nbsp</span>
-<span title="4.35" class="barcode" style="color: black; background-color: #85bcdc; font-size:1em">&nbspIn&nbsp</span>
-<span title="2.52" class="barcode" style="color: black; background-color: #c6dbef; font-size:1em">&nbspa&nbsp</span>
-<span title="8.77" class="barcode" style="color: white; background-color: #08509b; font-size:1em">&nbspspeech&nbsp</span>
-<span title="1.73" class="barcode" style="color: black; background-color: #d5e5f4; font-size:1em">&nbspat&nbsp</span>
-<span title="0.79" class="barcode" style="color: black; background-color: #e7f1fa; font-size:1em">&nbspthe&nbsp</span>
-<span title="5.76" class="barcode" style="color: black; background-color: #529dcc; font-size:1em">&nbspBritish&nbsp</span>
-<span title="4.41" class="barcode" style="color: black; background-color: #84bcdb; font-size:1em">&nbspScience&nbsp</span>
-<span title="2.24" class="barcode" style="color: black; background-color: #cbdef1; font-size:1em">&nbspFestival,&nbsp</span>
-<span title="3.66" class="barcode" style="color: black; background-color: #a1cbe2; font-size:1em">&nbspDr.&nbsp</span>
-<span title="4.31" class="barcode" style="color: black; background-color: #87bddc; font-size:1em">&nbspPaul&nbsp</span>
-<span title="7.85" class="barcode" style="color: white; background-color: #1967ad; font-size:1em">&nbspKelley&nbsp</span>
-<span title="4.6" class="barcode" style="color: black; background-color: #7cb7da; font-size:1em">&nbspfrom&nbsp</span>
-<span title="4.67" class="barcode" style="color: black; background-color: #79b5d9; font-size:1em">&nbspOxford&nbsp</span>
-<span title="0.12" class="barcode" style="color: black; background-color: #f5f9fe; font-size:1em">&nbspUniversity&nbsp</span>
-<span title="2.4" class="barcode" style="color: black; background-color: #c8dcf0; font-size:1em">&nbspsaid&nbsp</span>
-<span title="11.12" class="barcode" style="color: white; background-color: #08306b; font-size:1em">&nbspschools&nbsp</span>
-<span title="1.03" class="barcode" style="color: black; background-color: #e3eef8; font-size:1em">&nbspshould&nbsp</span>
-<span title="10.35" class="barcode" style="color: white; background-color: #08306b; font-size:1em">&nbspstagger&nbsp</span>
-<span title="1.58" class="barcode" style="color: black; background-color: #d8e7f5; font-size:1em">&nbsptheir&nbsp</span>
-<span title="8.35" class="barcode" style="color: white; background-color: #105ba4; font-size:1em">&nbspstarting&nbsp</span>
-<span title="1.3" class="barcode" style="color: black; background-color: #ddeaf7; font-size:1em">&nbsptimes&nbsp</span>
-<span title="1.82" class="barcode" style="color: black; background-color: #d3e4f3; font-size:1em">&nbspto&nbsp</span>
-<span title="6.7" class="barcode" style="color: black; background-color: #3686c0; font-size:1em">&nbspwork&nbsp</span>
-<span title="2.5" class="barcode" style="color: black; background-color: #c7dbef; font-size:1em">&nbspwith&nbsp</span>
-<span title="2.59" class="barcode" style="color: black; background-color: #c3daee; font-size:1em">&nbspthe&nbsp</span>
-<span title="7.68" class="barcode" style="color: white; background-color: #1d6cb1; font-size:1em">&nbspnatural&nbsp</span>
-<span title="2.88" class="barcode" style="color: black; background-color: #bad6eb; font-size:1em">&nbsprhythms&nbsp</span>
-<span title="0.3" class="barcode" style="color: black; background-color: #f2f7fd; font-size:1em">&nbspof&nbsp</span>
-<span title="2.59" class="barcode" style="color: black; background-color: #c3daee; font-size:1em">&nbsptheir&nbsp</span>
-<span title="1.1" class="barcode" style="color: black; background-color: #e1edf8; font-size:1em">&nbspstudents.&nbsp</span>
-<span title="4.64" class="barcode" style="color: black; background-color: #7ab6d9; font-size:1em">&nbspThis&nbsp</span>
-<span title="2.11" class="barcode" style="color: black; background-color: #cee0f2; font-size:1em">&nbspwould&nbsp</span>
-<span title="4.59" class="barcode" style="color: black; background-color: #7cb7da; font-size:1em">&nbspimprove&nbsp</span>
-<span title="8.75" class="barcode" style="color: white; background-color: #08509b; font-size:1em">&nbspexam&nbsp</span>
-<span title="1.52" class="barcode" style="color: black; background-color: #d9e8f5; font-size:1em">&nbspresults&nbsp</span>
-<span title="1.22" class="barcode" style="color: black; background-color: #dfebf7; font-size:1em">&nbspand&nbsp</span>
-<span title="4.87" class="barcode" style="color: black; background-color: #71b1d7; font-size:1em">&nbspstudents'&nbsp</span>
-<span title="4.73" class="barcode" style="color: black; background-color: #75b4d8; font-size:1em">&nbsphealth&nbsp</span>
-<span title="15.48" class="barcode" style="color: white; background-color: #08306b; font-size:1em">&nbsp(lack&nbsp</span>
-<span title="0.02" class="barcode" style="color: black; background-color: #f7fbff; font-size:1em">&nbspof&nbsp</span>
-<span title="0.21" class="barcode" style="color: black; background-color: #f3f8fe; font-size:1em">&nbspsleep&nbsp</span>
-<span title="3.14" class="barcode" style="color: black; background-color: #b2d2e8; font-size:1em">&nbspcan&nbsp</span>
-<span title="2.25" class="barcode" style="color: black; background-color: #cbdef1; font-size:1em">&nbspcause&nbsp</span>
-<span title="6.96" class="barcode" style="color: black; background-color: #2f7fbc; font-size:1em">&nbspdiabetes,&nbsp</span>
-<span title="4.09" class="barcode" style="color: black; background-color: #91c3de; font-size:1em">&nbspdepression,&nbsp</span>
-<span title="3.98" class="barcode" style="color: black; background-color: #95c5df; font-size:1em">&nbspobesity&nbsp</span>
-<span title="1.27" class="barcode" style="color: black; background-color: #deebf7; font-size:1em">&nbspand&nbsp</span>
-<span title="1.74" class="barcode" style="color: black; background-color: #d5e5f4; font-size:1em">&nbspother&nbsp</span>
-<span title="1.31" class="barcode" style="color: black; background-color: #ddeaf7; font-size:1em">&nbsphealth&nbsp</span>
-<span title="0.98" class="barcode" style="color: black; background-color: #e3eef9; font-size:1em">&nbspproblems).&nbsp</span>
-<br><br>
+<img width="781" alt="{C8070022-03F2-41C8-9B78-156007085C7C}" src="https://github.com/user-attachments/assets/8ec4f671-2468-4443-b44a-259e01daf046">
+
 
 ###### With Left Context
 
-<h4></h4>
-<span title="8.02" class="barcode" style="color: white; background-color: #1663aa; font-size:1em">&nbspMany&nbsp</span>
-<span title="1.75" class="barcode" style="color: black; background-color: #d5e5f4; font-size:1em">&nbspof&nbsp</span>
-<span title="1.43" class="barcode" style="color: black; background-color: #dbe9f6; font-size:1em">&nbspus&nbsp</span>
-<span title="2.3" class="barcode" style="color: black; background-color: #cadef0; font-size:1em">&nbspknow&nbsp</span>
-<span title="7.75" class="barcode" style="color: white; background-color: #1c6ab0; font-size:1em">&nbspwe&nbsp</span>
-<span title="3.48" class="barcode" style="color: black; background-color: #a8cee4; font-size:1em">&nbspdon't&nbsp</span>
-<span title="2.67" class="barcode" style="color: black; background-color: #c1d9ed; font-size:1em">&nbspget&nbsp</span>
-<span title="3.06" class="barcode" style="color: black; background-color: #b4d3e9; font-size:1em">&nbspenough&nbsp</span>
-<span title="5.94" class="barcode" style="color: black; background-color: #4b98ca; font-size:1em">&nbspsleep,&nbsp</span>
-<span title="1.22" class="barcode" style="color: black; background-color: #dfebf7; font-size:1em">&nbspbut&nbsp</span>
-<span title="8.48" class="barcode" style="color: white; background-color: #0d57a1; font-size:1em">&nbspimagine&nbsp</span>
-<span title="1.09" class="barcode" style="color: black; background-color: #e2edf8; font-size:1em">&nbspif&nbsp</span>
-<span title="3.39" class="barcode" style="color: black; background-color: #aacfe5; font-size:1em">&nbspthere&nbsp</span>
-<span title="1.18" class="barcode" style="color: black; background-color: #dfecf7; font-size:1em">&nbspwas&nbsp</span>
-<span title="0.7" class="barcode" style="color: black; background-color: #eaf2fb; font-size:1em">&nbspa&nbsp</span>
-<span title="5.91" class="barcode" style="color: black; background-color: #4d99ca; font-size:1em">&nbspsimple&nbsp</span>
-<span title="4.67" class="barcode" style="color: black; background-color: #79b5d9; font-size:1em">&nbspsolution:&nbsp</span>
-<span title="7.59" class="barcode" style="color: white; background-color: #1f6eb3; font-size:1em">&nbspgetting&nbsp</span>
-<span title="2.55" class="barcode" style="color: black; background-color: #c4daee; font-size:1em">&nbspup&nbsp</span>
-<span title="7.25" class="barcode" style="color: white; background-color: #2777b8; font-size:1em">&nbsplater.&nbsp</span>
-<span title="4.26" class="barcode" style="color: black; background-color: #89bedc; font-size:1em">&nbspIn&nbsp</span>
-<span title="2.62" class="barcode" style="color: black; background-color: #c2d9ee; font-size:1em">&nbspa&nbsp</span>
-<span title="7.91" class="barcode" style="color: white; background-color: #1966ad; font-size:1em">&nbspspeech&nbsp</span>
-<span title="1.35" class="barcode" style="color: black; background-color: #dceaf6; font-size:1em">&nbspat&nbsp</span>
-<span title="0.92" class="barcode" style="color: black; background-color: #e5eff9; font-size:1em">&nbspthe&nbsp</span>
-<span title="6.09" class="barcode" style="color: black; background-color: #4896c8; font-size:1em">&nbspBritish&nbsp</span>
-<span title="4.89" class="barcode" style="color: black; background-color: #6fb0d7; font-size:1em">&nbspScience&nbsp</span>
-<span title="2.86" class="barcode" style="color: black; background-color: #bad6eb; font-size:1em">&nbspFestival,&nbsp</span>
-<span title="1.04" class="barcode" style="color: black; background-color: #e3eef8; font-size:1em">&nbspDr.&nbsp</span>
-<span title="2.44" class="barcode" style="color: black; background-color: #c7dcef; font-size:1em">&nbspPaul&nbsp</span>
-<span title="0.19" class="barcode" style="color: black; background-color: #f4f9fe; font-size:1em">&nbspKelley&nbsp</span>
-<span title="6.66" class="barcode" style="color: black; background-color: #3787c0; font-size:1em">&nbspfrom&nbsp</span>
-<span title="3.82" class="barcode" style="color: black; background-color: #9cc9e1; font-size:1em">&nbspOxford&nbsp</span>
-<span title="0.4" class="barcode" style="color: black; background-color: #eff6fc; font-size:1em">&nbspUniversity&nbsp</span>
-<span title="2.24" class="barcode" style="color: black; background-color: #cbdef1; font-size:1em">&nbspsaid&nbsp</span>
-<span title="9.53" class="barcode" style="color: white; background-color: #083c7d; font-size:1em">&nbspschools&nbsp</span>
-<span title="1.14" class="barcode" style="color: black; background-color: #e0ecf8; font-size:1em">&nbspshould&nbsp</span>
-<span title="10.3" class="barcode" style="color: white; background-color: #08306b; font-size:1em">&nbspstagger&nbsp</span>
-<span title="1.37" class="barcode" style="color: black; background-color: #dce9f6; font-size:1em">&nbsptheir&nbsp</span>
-<span title="8.18" class="barcode" style="color: white; background-color: #135fa7; font-size:1em">&nbspstarting&nbsp</span>
-<span title="1.34" class="barcode" style="color: black; background-color: #dceaf6; font-size:1em">&nbsptimes&nbsp</span>
-<span title="1.9" class="barcode" style="color: black; background-color: #d2e3f3; font-size:1em">&nbspto&nbsp</span>
-<span title="6.48" class="barcode" style="color: black; background-color: #3c8cc3; font-size:1em">&nbspwork&nbsp</span>
-<span title="2.45" class="barcode" style="color: black; background-color: #c7dcef; font-size:1em">&nbspwith&nbsp</span>
-<span title="2.47" class="barcode" style="color: black; background-color: #c7dbef; font-size:1em">&nbspthe&nbsp</span>
-<span title="7.59" class="barcode" style="color: white; background-color: #1f6eb3; font-size:1em">&nbspnatural&nbsp</span>
-<span title="2.65" class="barcode" style="color: black; background-color: #c2d9ee; font-size:1em">&nbsprhythms&nbsp</span>
-<span title="0.25" class="barcode" style="color: black; background-color: #f2f8fd; font-size:1em">&nbspof&nbsp</span>
-<span title="1.96" class="barcode" style="color: black; background-color: #d0e2f2; font-size:1em">&nbsptheir&nbsp</span>
-<span title="1.08" class="barcode" style="color: black; background-color: #e2edf8; font-size:1em">&nbspstudents.&nbsp</span>
-<span title="4.32" class="barcode" style="color: black; background-color: #87bddc; font-size:1em">&nbspThis&nbsp</span>
-<span title="2.44" class="barcode" style="color: black; background-color: #c7dcef; font-size:1em">&nbspwould&nbsp</span>
-<span title="4.64" class="barcode" style="color: black; background-color: #7ab6d9; font-size:1em">&nbspimprove&nbsp</span>
-<span title="8.55" class="barcode" style="color: white; background-color: #0c56a0; font-size:1em">&nbspexam&nbsp</span>
-<span title="1.51" class="barcode" style="color: black; background-color: #d9e8f5; font-size:1em">&nbspresults&nbsp</span>
-<span title="1.25" class="barcode" style="color: black; background-color: #dfebf7; font-size:1em">&nbspand&nbsp</span>
-<span title="4.7" class="barcode" style="color: black; background-color: #77b5d9; font-size:1em">&nbspstudents'&nbsp</span>
-<span title="4.98" class="barcode" style="color: black; background-color: #6caed6; font-size:1em">&nbsphealth&nbsp</span>
-<span title="14.86" class="barcode" style="color: white; background-color: #08306b; font-size:1em">&nbsp(lack&nbsp</span>
-<span title="0.03" class="barcode" style="color: black; background-color: #f7fbff; font-size:1em">&nbspof&nbsp</span>
-<span title="0.21" class="barcode" style="color: black; background-color: #f3f8fe; font-size:1em">&nbspsleep&nbsp</span>
-<span title="3.32" class="barcode" style="color: black; background-color: #add0e6; font-size:1em">&nbspcan&nbsp</span>
-<span title="2.24" class="barcode" style="color: black; background-color: #cbdef1; font-size:1em">&nbspcause&nbsp</span>
-<span title="7.02" class="barcode" style="color: white; background-color: #2e7ebc; font-size:1em">&nbspdiabetes,&nbsp</span>
-<span title="4.1" class="barcode" style="color: black; background-color: #91c3de; font-size:1em">&nbspdepression,&nbsp</span>
-<span title="4.06" class="barcode" style="color: black; background-color: #92c4de; font-size:1em">&nbspobesity&nbsp</span>
-<span title="1.32" class="barcode" style="color: black; background-color: #ddeaf7; font-size:1em">&nbspand&nbsp</span>
-<span title="1.72" class="barcode" style="color: black; background-color: #d6e5f4; font-size:1em">&nbspother&nbsp</span>
-<span title="1.31" class="barcode" style="color: black; background-color: #ddeaf7; font-size:1em">&nbsphealth&nbsp</span>
-<span title="1.04" class="barcode" style="color: black; background-color: #e3eef8; font-size:1em">&nbspproblems).&nbsp</span>
-<br><br>
+<img width="777" alt="{71B87E89-2BCE-43C4-A8E2-A3B6EBFBB028}" src="https://github.com/user-attachments/assets/52320945-ce45-4a41-b158-63c6d8e39616">
 
 As can be seen, the surprisal values for "Dr. Paul Kelly" have been changed drastically due to the left context.
 
