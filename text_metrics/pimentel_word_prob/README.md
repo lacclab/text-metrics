@@ -1,9 +1,10 @@
 # probability-of-a-word
 
+# NOTE: We replaced `gpt2-small` with `gpt2`
+
 [![CircleCI](https://circleci.com/gh/tpimentelms/probability-of-a-word.svg?style=svg)](https://circleci.com/gh/tpimentelms/probability-of-a-word)
 
 Code to compute a word's probability using the fixes from "How to Compute the Probability of a Word"
-
 
 ### Installation
 
@@ -23,15 +24,16 @@ pip install -e .
 
 WordsProbability has the following requirements:
 
-* [Pandas](https://pandas.pydata.org)
-* [PyTorch](https://pytorch.org)
-* [Transformers](https://huggingface.co/docs/transformers/en/index)
+- [Pandas](https://pandas.pydata.org)
+- [PyTorch](https://pytorch.org)
+- [Transformers](https://huggingface.co/docs/transformers/en/index)
 
 ### Usage
 
 #### Basic Usage
 
 Install this repository. Then run:
+
 ```bash
 $ wordsprobability --model pythia-70m --input examples/abstract.txt --output temp.tsv
 ```
@@ -39,23 +41,22 @@ $ wordsprobability --model pythia-70m --input examples/abstract.txt --output tem
 The input must be a txt file, with one sequence per line.
 The output will be a tsv file with a word per row with its respective computed `surprisal` values.
 To also get computed `surprisal_buggy` values (without our paper's correction) use the optional flag `--return-buggy-surprisals`.
-Currently, supported models are: `pythia-70m`, `pythia-160m`, `pythia-410m`, `pythia-14b`, `pythia-28b`, `pythia-69b`, `pythia-120b`, `gpt2-small`, `gpt2-medium`, `gpt2-large`, `gpt2-xl`.
+Currently, supported models are: `pythia-70m`, `pythia-160m`, `pythia-410m`, `pythia-14b`, `pythia-28b`, `pythia-69b`, `pythia-120b`, `gpt2`, `gpt2-medium`, `gpt2-large`, `gpt2-xl`.
 
 #### Using in other Applications
 
 Import wordsprobability in your application and get surprisals with:
+
 ```python
     from wordsprobability import get_surprisal_per_word
     df = get_surprisal_per_word(text='Hello world! Who are you???\nWho am I?', model_name='pythia-70m')
 ```
-
 
 ## Extra Information
 
 #### Citation
 
 If this code or the paper were usefull to you, consider citing it:
-
 
 ```bibtex
 @article{pimentel-etal-2024-howto,
@@ -70,7 +71,6 @@ If this code or the paper were usefull to you, consider citing it:
     journal = "arXiv preprint arXiv:2406.14561",
 }
 ```
-
 
 #### Contact
 

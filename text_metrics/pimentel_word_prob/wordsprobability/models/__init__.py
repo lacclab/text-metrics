@@ -13,7 +13,7 @@ from .bow_lm import (
 )
 
 MODELS = {
-    "gpt2-small": EnglishGpt2Small,
+    "gpt2": EnglishGpt2Small,  # corresponds to gpt2-small
     "gpt2-medium": EnglishGpt2Medium,
     "gpt2-large": EnglishGpt2Large,
     "gpt2-xl": EnglishGpt2Xl,
