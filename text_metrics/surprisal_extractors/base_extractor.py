@@ -1,15 +1,7 @@
-from enum import Enum
 from typing import List, Tuple
 import numpy as np
 from text_metrics.utils import init_tok_n_model
 import torch
-
-
-# Define an Enum where each element is associated with a specific class
-class ProcessingMode(Enum):
-    CONCAT_CTX_LEFT = "CONCAT_CTX_LEFT"
-    SOFT_CONCAT_CTX_AGG = "SOFT_CONCAT_CTX_AGG"
-    SOFT_CONCAT_CTX_SENT_AGG = "SOFT_CONCAT_CTX_SENT_AGG"
 
 
 class BaseSurprisalExtractor:

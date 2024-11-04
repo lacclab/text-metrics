@@ -5,14 +5,16 @@ import numpy as np
 import pandas as pd
 import spacy
 from text_metrics.surprisal_extractors.base_extractor import BaseSurprisalExtractor
+import pkg_resources
 
 from text_metrics.utils import get_parsing_features, string_to_log_probs, clean_text
-from wordfreq import word_frequency
+from wordfreq import word_frequency, tokenize
+from text_metrics.surprisal_extractors.extractors_constants import SurpExtractorType
 from text_metrics.surprisal_extractors.extractor_switch import (
-    SurpExtractorType,
     get_surp_extractor,
 )
 import matplotlib
+from text_metrics.viz_text_heatmap import generate_html_for_texts
 
 
 # Credits: https://github.com/byungdoh/llm_surprisal/blob/eacl24/get_llm_surprisal.py
@@ -47,7 +49,10 @@ def get_surprisal(
     3    you?   3.704563
     """
 
-    if surp_extractor.extractor_type_name != SurpExtractorType.PIMENTEL_CTX_LEFT.value:
+    if surp_extractor.extractor_type_name not in [
+        SurpExtractorType.PIMENTEL_CTX_LEFT.value,
+        SurpExtractorType.INV_EFFECT_EXTRACTOR.value,
+    ]:
         probs, offset_mapping = surp_extractor.surprise(
             target_text=target_text,
             left_context_text=left_context_text,
@@ -102,32 +107,32 @@ def get_frequency(text: str) -> pd.DataFrame:
             -np.log2(word_frequency(word, lang="en", minimum=1e-11)) for word in words
         ],  # minimum equal to ~36.5
     }
-    # # TODO improve loading of file according to https://stackoverflow.com/questions/6028000/how-to-read-a-static-file-from-inside-a-python-package
-    # #  and https://setuptools.pypa.io/en/latest/userguide/datafiles.html
-    # data = pkg_resources.resource_stream(
-    #     __name__, "data/SUBTLEXus74286wordstextversion_lower.tsv"
-    # )
-    # subtlex = pd.read_csv(
-    #     data,
-    #     sep="\t",
-    #     index_col=0,
-    # )
-    # subtlex["Frequency"] = -np.log2(subtlex["Count"] / subtlex.sum().iloc[0])
+    # TODO improve loading of file according to https://stackoverflow.com/questions/6028000/how-to-read-a-static-file-from-inside-a-python-package
+    #  and https://setuptools.pypa.io/en/latest/userguide/datafiles.html
+    data = pkg_resources.resource_stream(
+        __name__, "data/SUBTLEXus74286wordstextversion_lower.tsv"
+    )
+    subtlex = pd.read_csv(
+        data,
+        sep="\t",
+        index_col=0,
+    )
+    subtlex["Frequency"] = -np.log2(subtlex["Count"] / subtlex.sum().iloc[0])
 
-    # #  TODO subtlex freq should be 'inf' if missing, not zero?
-    # subtlex_freqs = []
-    # for word in words:
-    #     tokens = tokenize(word, lang="en")
-    #     one_over_result = 0.0
-    #     try:
-    #         for token in tokens:
-    #             one_over_result += 1.0 / subtlex.loc[token, "Frequency"]
-    #     except KeyError:
-    #         subtlex_freq = 0
-    #     else:
-    #         subtlex_freq = 1.0 / one_over_result if one_over_result != 0 else 0
-    #     subtlex_freqs.append(subtlex_freq)
-    # frequencies["subtlex_Frequency"] = subtlex_freqs
+    #  TODO subtlex freq should be 'inf' if missing, not zero?
+    subtlex_freqs = []
+    for word in words:
+        tokens = tokenize(word, lang="en")
+        one_over_result = 0.0
+        try:
+            for token in tokens:
+                one_over_result += 1.0 / subtlex.loc[token, "Frequency"]
+        except KeyError:
+            subtlex_freq = 0
+        else:
+            subtlex_freq = 1.0 / one_over_result if one_over_result != 0 else 0
+        subtlex_freqs.append(subtlex_freq)
+    frequencies["subtlex_Frequency"] = subtlex_freqs
 
     return pd.DataFrame(frequencies)
 
@@ -257,33 +262,76 @@ def get_metrics(
 
 
 if __name__ == "__main__":
-    text = """'But the prospect of driverless cars replacing human-driven taxis has
-    been the cause of some alarm. "If you get rid of the driver, then they\'re unemployed,"
-    said Dennis Conyon, the south- east director for the UK National Taxi Association. "It
-    would have a major impact on the labor force." London has about 22,000 licensed cabs and
-    Conyon estimates that the total number of people who drive taxis for hire in the UK is about 100,000.""".replace(
-        "\n", " "
-    ).replace("    ", "")
-    question = "Question: The number of taxi drivers in London is ... Paragraph:"
+    # text = """Illegal downloading is a kind of "moral squalor" and theft, as much as reaching in to
+    # someone\'s pocket and stealing their wallet is theft, says author Philip Pullman. In an article
+    # for Index on Censorship, Pullman, who is president of the Society of Authors, makes a robust defence
+    # of copyright laws. He is highly critical of Internet users who think it is OK to download music or
+    # books without paying for them.""".replace("\n", " ").replace("    ", "")
+    # question = "Who does Pullman criticize?"
 
-    # text = """Many of us know we don't get enough sleep, but imagine if there was a simple solution:
-    # getting up later. In a speech at the British Science Festival, Dr. Paul Kelley from Oxford University
-    # said schools should stagger their starting times to work with the natural rhythms of their students.
-    # This would improve exam results and students' health (lack of sleep can cause diabetes, depression,
-    # obesity and other health problems).""".replace("\n", " ").replace("    ", "")
-    # question = (
-    #     "What does Dr. Kelley suggest about the current starting time for schools?"
+    text = """Many of us know we don't get enough sleep, but imagine if there was a simple solution:
+    getting up later. In a speech at the British Science Festival, Dr. Paul Kelley from Oxford University
+    said schools should stagger their starting times to work with the natural rhythms of their students.
+    This would improve exam results and students' health (lack of sleep can cause diabetes, depression,
+    obesity and other health problems).""".replace("\n", " ").replace("    ", "")
+    question = "What are some of the effects of following Dr. Kelley's suggestion?"
+
+    # -----------------------------------------
+    # et_data = pd.read_csv(
+    #     "/data/home/shared/onestop/processed/ia_data_enriched_360_05052024.csv",
+    #     engine="pyarrow",
+    # )
+    # mean_rt = (
+    #     et_data.query(
+    #         f'unique_paragraph_id == "1_9_Ele_1" and question == "{question}" and reread == 0'
+    #     )
+    #     .groupby(["IA_ID", "IA_LABEL", "has_preview", "is_in_aspan"])["IA_DWELL_TIME"]
+    #     .mean()
+    #     .reset_index()
+    # )
+
+    # generate_html_for_texts(
+    #     titles=["Reading Times Heatmap - Gathering", "Reading Times Heatmap - Hunting"],
+    #     texts=[text] * 2,
+    #     weights_list=[
+    #         mean_rt.query("has_preview == 'Gathering'")["IA_DWELL_TIME"],
+    #         mean_rt.query("has_preview == 'Hunting'")["IA_DWELL_TIME"],
+    #     ],
+    #     output_file_name="Reading_times_heatmap.html",
+    #     color_normalizing_factor=350,
+    #     cmap=matplotlib.colormaps.get_cmap("Greens"),
+    #     additional_note="Question: " + question,
+    #     aspan_flags_list=[
+    #         mean_rt.query("has_preview == 'Gathering'")["is_in_aspan"].values,
+    #         mean_rt.query("has_preview == 'Hunting'")["is_in_aspan"].values,
+    #     ],
     # )
 
     # pythia 70m
-    model_name = "EleutherAI/pythia-6.9b"
+    model_name = "EleutherAI/pythia-70m"
+    surp_extractor = get_surp_extractor(
+        extractor_type=SurpExtractorType.CAT_CTX_LEFT, model_name=model_name
+    )
+    q = question
 
+    metrics = get_metrics(
+        target_text=text,
+        surp_extractor=surp_extractor,
+        parsing_model=None,
+        parsing_mode=None,
+        left_context_text=q,
+        add_parsing_features=False,
+        overlap_size=512,
+    )
+
+    print(metrics)
+    # ------------------------------------------------------------------
     metrics_df = None
     extractor_type_lst = [
         SurpExtractorType.CAT_CTX_LEFT,  #! Fixed! don't remove!
         SurpExtractorType.CAT_CTX_LEFT,
-        SurpExtractorType.SOFT_CAT_WHOLE_CTX_LEFT,
-        SurpExtractorType.SOFT_CAT_SENTENCES,
+        # SurpExtractorType.SOFT_CAT_WHOLE_CTX_LEFT,
+        # SurpExtractorType.SOFT_CAT_SENTENCES,
     ]
     base_surp_lst = []
     surp_lsts = []
@@ -329,8 +377,6 @@ if __name__ == "__main__":
                 metrics[columns_to_use], left_index=True, right_index=True
             )
 
-    from text_metrics.viz_text_heatmap import generate_html_for_texts
-
     generate_html_for_texts(
         titles=surp_name_lsts,
         texts=[text] * len(surp_name_lsts),
@@ -341,4 +387,4 @@ if __name__ == "__main__":
         additional_note="Question: " + question,
     )
 
-    metrics_df.to_csv("metrics_df.csv", index=False)
+    # metrics_df.to_csv("metrics_df.csv", index=False)

@@ -3,6 +3,7 @@ import matplotlib
 import matplotlib.cm
 import numpy as np
 import matplotlib.colors as mcolors
+from typing import List
 
 
 class MidpointNormalizer(mcolors.Normalize):
@@ -74,16 +75,21 @@ def generate_html_for_texts(
     color_normalizing_factor=1.0,
     cmap=matplotlib.colormaps.get_cmap("Greens"),
     additional_note: str = "",
+    aspan_flags_list: List[List[bool]] | None = None,
 ):
     """
     Generates an HTML file that includes the colorized text for each input text and its corresponding weights.
     """
     html_content = "<meta charset='utf-8'>\n"
-
-    for title, text, weights in zip(titles, texts, weights_list):
+    if aspan_flags_list is None:
+        aspan_flags_list = [None] * len(texts)
+    for title, text, weights, aspan_flags in zip(
+        titles, texts, weights_list, aspan_flags_list
+    ):
         words = text.split()
+        if aspan_flags is None:
+            aspan_flags = [False] * len(words)
         word_num = len(words)
-        aspan_flags = [False] * word_num  # Example flags
         dspan_flags = [False] * word_num  # Example flags
 
         html_content += f"<h2>{title}:</h2>\n"
