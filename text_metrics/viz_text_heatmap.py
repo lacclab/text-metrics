@@ -107,7 +107,6 @@ def generate_html_for_texts(
     # Save the final HTML content
     with open(output_file_name, "w") as f:
         f.write(html_content)
-    print(f"HTML file generated: {output_file_name}")
 
 
 # Example usage

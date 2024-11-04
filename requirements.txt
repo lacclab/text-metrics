@@ -1,3 +1,4 @@
+python>=3.12
 pandas>=2.1.0
 transformers>=4.40.1
 wordfreq>=3.0.3
