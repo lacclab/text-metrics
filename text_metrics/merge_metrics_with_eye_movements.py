@@ -4,6 +4,7 @@ from typing import Tuple, Dict, List, Literal
 import pandas as pd
 import tqdm
 import spacy
+from text_metrics.utils import break_down_p_id
 from spacy.language import Language
 import torch
 from text_metrics.ling_metrics_funcs import get_metrics
@@ -102,6 +103,7 @@ def create_text_input(
         prefixes_word_indices_ranges,
         suffixes_word_indices_ranges,
     )
+
 
 def extract_metrics_for_text_df(
     text_df: pd.DataFrame,
@@ -414,10 +416,12 @@ def add_metrics_to_eye_tracking(
 
 if __name__ == "__main__":
     df = pd.read_csv(
-        "ln_shared_data/onestop/raw_reports/IA reports/ia_P.tsv",
-        sep="\t",
-        encoding="utf-16",
+        "ln_shared_data/onestop/processed/ia_data_enriched_360_05052024.csv",
+    ).drop(
+        columns=["gpt2_Surprisal", "Length", "Wordfreq_Frequency", "subtlex_Frequency"]
     )
+    df = break_down_p_id(df)
+
     surprisal_extraction_model_names = ["gpt2"]
     df = add_metrics_to_eye_tracking(
         eye_tracking_data=df,
