@@ -7,7 +7,7 @@ import spacy
 from text_metrics.surprisal_extractors.base_extractor import BaseSurprisalExtractor
 
 from text_metrics.utils import get_parsing_features, string_to_log_probs, clean_text
-from wordfreq import word_frequency
+from wordfreq import word_frequency, tokenize
 from text_metrics.surprisal_extractors.extractor_switch import (
     SurpExtractorType,
     get_surp_extractor,
@@ -102,32 +102,32 @@ def get_frequency(text: str) -> pd.DataFrame:
             -np.log2(word_frequency(word, lang="en", minimum=1e-11)) for word in words
         ],  # minimum equal to ~36.5
     }
-    # # TODO improve loading of file according to https://stackoverflow.com/questions/6028000/how-to-read-a-static-file-from-inside-a-python-package
-    # #  and https://setuptools.pypa.io/en/latest/userguide/datafiles.html
-    # data = pkg_resources.resource_stream(
-    #     __name__, "data/SUBTLEXus74286wordstextversion_lower.tsv"
-    # )
-    # subtlex = pd.read_csv(
-    #     data,
-    #     sep="\t",
-    #     index_col=0,
-    # )
-    # subtlex["Frequency"] = -np.log2(subtlex["Count"] / subtlex.sum().iloc[0])
+    # TODO improve loading of file according to https://stackoverflow.com/questions/6028000/how-to-read-a-static-file-from-inside-a-python-package
+    #  and https://setuptools.pypa.io/en/latest/userguide/datafiles.html
+    data = pkg_resources.resource_stream(
+        __name__, "data/SUBTLEXus74286wordstextversion_lower.tsv"
+    )
+    subtlex = pd.read_csv(
+        data,
+        sep="\t",
+        index_col=0,
+    )
+    subtlex["Frequency"] = -np.log2(subtlex["Count"] / subtlex.sum().iloc[0])
 
-    # #  TODO subtlex freq should be 'inf' if missing, not zero?
-    # subtlex_freqs = []
-    # for word in words:
-    #     tokens = tokenize(word, lang="en")
-    #     one_over_result = 0.0
-    #     try:
-    #         for token in tokens:
-    #             one_over_result += 1.0 / subtlex.loc[token, "Frequency"]
-    #     except KeyError:
-    #         subtlex_freq = 0
-    #     else:
-    #         subtlex_freq = 1.0 / one_over_result if one_over_result != 0 else 0
-    #     subtlex_freqs.append(subtlex_freq)
-    # frequencies["subtlex_Frequency"] = subtlex_freqs
+    #  TODO subtlex freq should be 'inf' if missing, not zero?
+    subtlex_freqs = []
+    for word in words:
+        tokens = tokenize(word, lang="en")
+        one_over_result = 0.0
+        try:
+            for token in tokens:
+                one_over_result += 1.0 / subtlex.loc[token, "Frequency"]
+        except KeyError:
+            subtlex_freq = 0
+        else:
+            subtlex_freq = 1.0 / one_over_result if one_over_result != 0 else 0
+        subtlex_freqs.append(subtlex_freq)
+    frequencies["subtlex_Frequency"] = subtlex_freqs
 
     return pd.DataFrame(frequencies)
 
