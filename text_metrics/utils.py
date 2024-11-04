@@ -341,8 +341,21 @@ def init_tok_n_model(
             Pythia family:
             "EleutherAI/pythia-70m", "EleutherAI/pythia-160m", "EleutherAI/pythia-410m", "EleutherAI/pythia-1b",
             "EleutherAI/pythia-1.4b", "EleutherAI/pythia-2.8b", "EleutherAI/pythia-6.9b", "EleutherAI/pythia-12b",
-            each with checkpoints specified by training steps:
             "step1", "step2", "step4", ..., "step142000", "step143000"
+            Llama family:
+            "meta-llama/Llama-2-7b-hf", "meta-llama/Llama-2-13b-hf", "meta-llama/Llama-2-70b-hf"
+
+            Gemma family (also `*-it` versions):
+            "google/gemma-2b", "google/gemma-7b", "google/recurrentgemma-2b", "google/recurrentgemma-9b"
+
+            Mamba family: (install (pip): mamba-ssm, causal-conv1d>=1.2.0)
+            "state-spaces/mamba-130m-hf", "state-spaces/mamba-370m-hf",
+            "state-spaces/mamba-790m-hf", "state-spaces/mamba-1.4b-hf",
+            "state-spaces/mamba-2.8b-hf"
+
+            Mistral family:
+            "mistralai/Mistral-7B-Instruct-v0.*" where * is the version number
+
         device (str, optional): Defaults to 'cpu'.
         pythia_checkpoint (str, optional): The checkpoint for Pythia models. Defaults to 'step143000'.
 
