@@ -293,13 +293,13 @@ def extract_metrics_for_text_df_multiple_hf_models(
     return metric_df
 
 
-def add_metrics_to_eye_tracking(
+def add_metrics_to_word_level_eye_tracking_report(
     eye_tracking_data: pd.DataFrame,
     surprisal_extraction_model_names: List[str],
+    textual_item_key_cols: List[str],
     spacy_model_name: str,
     surp_extractor_type: extractors_constants.SurpExtractorType,
     parsing_mode: Literal["keep-first", "keep-all", "re-tokenize"],
-    add_question_in_prompt: bool = False,
     model_target_device: str = "cpu",
     hf_access_token: str = None,
 ) -> pd.DataFrame:
@@ -324,39 +324,26 @@ def add_metrics_to_eye_tracking(
 
     # Remove duplicates
     without_duplicates = eye_tracking_data[
-        [
-            "paragraph_id",
-            "batch",
-            "article_id",
-            "level",
+        textual_item_key_cols
+        + [
             "IA_ID",
-            "has_preview",
-            "question",
             "IA_LABEL",
         ]
     ].drop_duplicates()
 
     # Group by paragraph_id, batch, article_id, level and join all IA_LABELs (words)
-    text_from_et = without_duplicates.groupby(
-        ["paragraph_id", "batch", "article_id", "level", "has_preview", "question"]
-    )["IA_LABEL"].apply(list)
+    text_from_et = without_duplicates.groupby(textual_item_key_cols)["IA_LABEL"].apply(
+        list
+    )
 
     text_from_et = text_from_et.apply(lambda text: " ".join(text))
 
     spacy_model = spacy.load(spacy_model_name)
-    text_key_cols = [
-        "paragraph_id",
-        "batch",
-        "article_id",
-        "level",
-        "has_preview",
-        "question",
-    ]
 
     extract_metrics_partial = partial(
         extract_metrics_for_text_df_multiple_hf_models,
         text_col_name="IA_LABEL",
-        text_key_cols=text_key_cols,
+        text_key_cols=textual_item_key_cols,
         surprisal_extraction_model_names=surprisal_extraction_model_names,
         surp_extractor_type=surp_extractor_type,
         parsing_mode=parsing_mode,
@@ -364,34 +351,12 @@ def add_metrics_to_eye_tracking(
         model_target_device=model_target_device,
         hf_access_token=hf_access_token,
     )
-    if add_question_in_prompt:
-        print("Extracting metrics: Hunting")
-        hunting_metric_df = extract_metrics_partial(
-            text_df=text_from_et[
-                text_from_et.index.get_level_values("has_preview") == "Hunting"
-            ],
-            extract_metrics_for_text_df_kwargs=dict(
-                ordered_prefix_col_names=["question"],
-            ),
-        )
-        print("Extracting metrics: Gathering")
-        gathering_metric_df = extract_metrics_partial(
-            text_df=text_from_et[
-                text_from_et.index.get_level_values("has_preview") == "Gathering"
-            ],
-            extract_metrics_for_text_df_kwargs=dict(
-                ordered_prefix_col_names=[],
-            ),
-        )
-
-        metric_df = pd.concat([hunting_metric_df, gathering_metric_df], axis=0)
-    else:
-        metric_df = extract_metrics_partial(
-            text_df=text_from_et,
-            extract_metrics_for_text_df_kwargs=dict(
-                ordered_prefix_col_names=[],
-            ),
-        )
+    metric_df = extract_metrics_partial(
+        text_df=text_from_et,
+        extract_metrics_for_text_df_kwargs=dict(
+            ordered_prefix_col_names=[],
+        ),
+    )
 
     metric_df = metric_df.rename({"index": "IA_ID", "Word": "IA_LABEL"}, axis=1)
 
@@ -399,13 +364,8 @@ def add_metrics_to_eye_tracking(
     et_data_enriched = eye_tracking_data.merge(
         metric_df,
         how="left",
-        on=[
-            "batch",
-            "article_id",
-            "has_preview",
-            "question",
-            "paragraph_id",
-            "level",
+        on=textual_item_key_cols
+        + [
             "IA_ID",
         ],
         validate="many_to_one",
@@ -415,6 +375,38 @@ def add_metrics_to_eye_tracking(
 
 
 if __name__ == "__main__":
+    # text_df = pd.DataFrame(
+    #     {
+    #         "Prefix": ["pre 11", "pre 12", "pre 21", "pre 22"],
+    #         "Target_Text": [
+    #             "Is this the real life?",
+    #             "Is this just fantasy?",
+    #             "Caught in a landslide,",
+    #             "no escape from reality",
+    #         ],
+    #         "Phrase": [1, 2, 1, 2],
+    #         "Line": [1, 1, 2, 2],
+    #     }
+    # )
+
+    # text_df_w_metrics = extract_metrics_for_text_df_multiple_hf_models(
+    #     text_df=text_df,
+    #     text_col_name="Target_Text",
+    #     text_key_cols=["Phrase", "Line"],
+    #     surprisal_extraction_model_names=[
+    #         "gpt2",
+    #         "EleutherAI/pythia-70m",
+    #         "state-spaces/mamba-130m-hf",
+    #     ],
+    #     surp_extractor_type=extractors_constants.SurpExtractorType.CAT_CTX_LEFT,
+    #     add_parsing_features=False,
+    #     model_target_device="cuda",
+    #     # arguments for the function extract_metrics_for_text_df
+    #     extract_metrics_for_text_df_kwargs={
+    #         "ordered_prefix_col_names": ["Prefix"],
+    #     },
+    # )
+
     df = pd.read_csv(
         "ln_shared_data/onestop/processed/ia_data_enriched_360_05052024.csv",
     ).drop(
@@ -422,13 +414,22 @@ if __name__ == "__main__":
     )
     df = break_down_p_id(df)
 
+    textual_item_key_cols = [
+        "paragraph_id",
+        "batch",
+        "article_id",
+        "level",
+        "has_preview",
+        "question",
+    ]
+
     surprisal_extraction_model_names = ["gpt2"]
-    df = add_metrics_to_eye_tracking(
+    df = add_metrics_to_word_level_eye_tracking_report(
         eye_tracking_data=df,
         surprisal_extraction_model_names=surprisal_extraction_model_names,
+        textual_item_key_cols=textual_item_key_cols,
         spacy_model_name="en_core_web_sm",
-        surp_extractor_type=extractor_switch.SurpExtractorType.CAT_CTX_LEFT,
-        add_question_in_prompt=True,
+        surp_extractor_type=extractor_switch.SurpExtractorType.PIMENTEL_CTX_LEFT,
         parsing_mode="re-tokenize",
         model_target_device="cuda:0",
         hf_access_token="blablabla",
@@ -448,6 +449,7 @@ if __name__ == "__main__":
     for column in columns_to_shift:
         df[f"prev_{column}"] = df.groupby(group_columns)[column].shift(1)
 
+    #!-----------------------------------
     # et_data = break_down_p_id(et_data)
     # # et_data = et_data[et_data["batch"] == 1]
     # et_data = et_data.drop(
