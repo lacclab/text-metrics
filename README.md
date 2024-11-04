@@ -53,22 +53,23 @@ from text_metrics.surprisal_extractors import extractors_constants
 
 text_df = pd.DataFrame(
     {
-        "Prefix": ["pre 11", "pre 12", "pre 21", "pre 22"],
+        "Phrase": [1, 2, 1, 2],
+        "Line": [1, 1, 2, 2],
         "Target_Text": [
             "Is this the real life?",
             "Is this just fantasy?",
             "Caught in a landslide,",
             "no escape from reality",
         ],
-        "Phrase": [1, 2, 1, 2],
-        "Line": [1, 1, 2, 2],
+        "Prefix": ["pre 11", "pre 12", "pre 21", "pre 22"],
+
     }
 )
 
 text_df_w_metrics = extract_metrics_for_text_df_multiple_hf_models(
     text_df=text_df,
     text_col_name="Target_Text",
-    text_key_cols=["Phrase", "Line"],
+    text_key_cols=["Line", "Phrase"],
     surprisal_extraction_model_names=[
         "gpt2",
         "EleutherAI/pythia-70m",
@@ -84,27 +85,36 @@ text_df_w_metrics = extract_metrics_for_text_df_multiple_hf_models(
 )
 ```
 
-Result:
+Input:
 
-|     | index | Word       | Length | Wordfreq_Frequency | subtlex_Frequency | gpt2_Surprisal | Phrase | Line | EleutherAI/pythia-70m_Surprisal | state-spaces/mamba-130m-hf_Surprisal |
-| --: | ----: | :--------- | -----: | -----------------: | ----------------: | -------------: | -----: | ---: | ------------------------------: | -----------------------------------: |
-|   0 |     0 | Is         |      2 |            6.41735 |           6.75709 |        10.6974 |      1 |    1 |                          9.5653 |                              10.2678 |
-|   1 |     1 | this       |      4 |            7.24113 |           6.93294 |        2.35303 |      1 |    1 |                         7.33117 |                              5.59489 |
-|   2 |     2 | the        |      3 |            4.21893 |           5.04894 |         2.3539 |      1 |    1 |                         2.90964 |                              1.84557 |
-|   3 |     3 | real       |      4 |            11.2949 |           11.1044 |        3.76594 |      1 |    1 |                         5.73141 |                              4.99041 |
-|   4 |     4 | life?      |      4 |            10.3317 |           10.2571 |        8.25526 |      1 |    1 |                         7.84282 |                              6.57673 |
-|   5 |     0 | Is         |      2 |            6.41735 |           6.75709 |        10.0461 |      2 |    1 |                          9.6152 |                              10.7826 |
-|   6 |     1 | this       |      4 |            7.24113 |           6.93294 |        2.61381 |      2 |    1 |                         6.51316 |                              5.26467 |
-|   7 |     2 | just       |      4 |            8.53818 |           7.68143 |        6.07112 |      2 |    1 |                         6.84601 |                              4.86802 |
-|   8 |     3 | fantasy?   |      7 |            14.8828 |           15.8738 |        8.53002 |      2 |    1 |                         12.7546 |                              8.56943 |
-|   9 |     0 | Caught     |      6 |            13.6205 |           13.3412 |        13.8529 |      1 |    2 |                         13.3173 |                              14.6917 |
-|  10 |     1 | in         |      2 |            5.74855 |           6.64024 |        2.12986 |      1 |    2 |                         2.23954 |                              2.46692 |
-|  11 |     2 | a          |      1 |            5.44851 |           5.57752 |        2.16311 |      1 |    2 |                         1.38347 |                              1.51784 |
-|  12 |     3 | landslide, |      9 |            18.3709 |            20.175 |        9.13496 |      1 |    2 |                         13.5699 |                              14.0326 |
-|  13 |     0 | no         |      2 |            8.80229 |           7.35099 |        8.02664 |      2 |    2 |                         7.13618 |                              7.29309 |
-|  14 |     1 | escape     |      6 |             14.482 |           14.4265 |         9.8561 |      2 |    2 |                         15.3783 |                              13.2179 |
-|  15 |     2 | from       |      4 |            7.87155 |            8.9012 |        3.11976 |      2 |    2 |                         3.54212 |                              4.43229 |
-|  16 |     3 | reality    |      7 |            13.6536 |           14.9758 |        5.36706 |      2 |    2 |                          8.1663 |                              5.98277 |
+|     | Phrase | Line | Target_Text            | Prefix |
+| --: | -----: | ---: | :--------------------- | :----- |
+|   0 |      1 |    1 | Is this the real life? | pre 11 |
+|   1 |      2 |    1 | Is this just fantasy?  | pre 12 |
+|   2 |      1 |    2 | Caught in a landslide, | pre 21 |
+|   3 |      2 |    2 | no escape from reality | pre 22 |
+
+Output:
+
+|     | index | Word       | Length | Wordfreq_Frequency | subtlex_Frequency | gpt2_Surprisal | Line | Phrase | EleutherAI/pythia-70m_Surprisal | state-spaces/mamba-130m-hf_Surprisal |
+| --: | ----: | :--------- | -----: | -----------------: | ----------------: | -------------: | ---: | -----: | ------------------------------: | -----------------------------------: |
+|   0 |     0 | Is         |      2 |            6.41735 |           6.75709 |        10.6974 |    1 |      1 |                          9.5653 |                              10.2678 |
+|   1 |     1 | this       |      4 |            7.24113 |           6.93294 |        2.35303 |    1 |      1 |                         7.33117 |                              5.59489 |
+|   2 |     2 | the        |      3 |            4.21893 |           5.04894 |         2.3539 |    1 |      1 |                         2.90964 |                              1.84557 |
+|   3 |     3 | real       |      4 |            11.2949 |           11.1044 |        3.76594 |    1 |      1 |                         5.73141 |                              4.99041 |
+|   4 |     4 | life?      |      4 |            10.3317 |           10.2571 |        8.25526 |    1 |      1 |                         7.84282 |                              6.57673 |
+|   5 |     0 | Is         |      2 |            6.41735 |           6.75709 |        10.0461 |    1 |      2 |                          9.6152 |                              10.7826 |
+|   6 |     1 | this       |      4 |            7.24113 |           6.93294 |        2.61381 |    1 |      2 |                         6.51316 |                              5.26467 |
+|   7 |     2 | just       |      4 |            8.53818 |           7.68143 |        6.07112 |    1 |      2 |                         6.84601 |                              4.86802 |
+|   8 |     3 | fantasy?   |      7 |            14.8828 |           15.8738 |        8.53002 |    1 |      2 |                         12.7546 |                              8.56943 |
+|   9 |     0 | Caught     |      6 |            13.6205 |           13.3412 |        13.8529 |    2 |      1 |                         13.3173 |                              14.6917 |
+|  10 |     1 | in         |      2 |            5.74855 |           6.64024 |        2.12986 |    2 |      1 |                         2.23954 |                              2.46692 |
+|  11 |     2 | a          |      1 |            5.44851 |           5.57752 |        2.16311 |    2 |      1 |                         1.38347 |                              1.51784 |
+|  12 |     3 | landslide, |      9 |            18.3709 |            20.175 |        9.13496 |    2 |      1 |                         13.5699 |                              14.0326 |
+|  13 |     0 | no         |      2 |            8.80229 |           7.35099 |        8.02664 |    2 |      2 |                         7.13618 |                              7.29309 |
+|  14 |     1 | escape     |      6 |             14.482 |           14.4265 |         9.8561 |    2 |      2 |                         15.3783 |                              13.2179 |
+|  15 |     2 | from       |      4 |            7.87155 |            8.9012 |        3.11976 |    2 |      2 |                         3.54212 |                              4.43229 |
+|  16 |     3 | reality    |      7 |            13.6536 |           14.9758 |        5.36706 |    2 |      2 |                          8.1663 |                              5.98277 |
 
 # Integration With Eye Movement Data
 
@@ -198,12 +208,11 @@ metrics = get_metrics(
 )
 ```
 
-will affect the surprisal estimates in the column `gpt2_Surprisal` the following way: (higher color intensity -> higher surprisal) 
+will affect the surprisal estimates in the column `gpt2_Surprisal` the following way: (higher color intensity -> higher surprisal)
 
 ###### Without Left Context
 
 <img width="781" alt="{C8070022-03F2-41C8-9B78-156007085C7C}" src="https://github.com/user-attachments/assets/8ec4f671-2468-4443-b44a-259e01daf046">
-
 
 ###### With Left Context
 
