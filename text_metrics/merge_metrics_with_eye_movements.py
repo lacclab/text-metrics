@@ -103,78 +103,6 @@ def create_text_input(
         suffixes_word_indices_ranges,
     )
 
-
-def filter_prefix_suffix_metrics(
-    merged_df: pd.DataFrame,
-    prefix_col_names: List[str],
-    keep_prefix_metrics: bool | List[str],
-    suffix_col_names: List[str],
-    keep_suffix_metrics: bool | List[str],
-    prefixes_word_indices_ranges: dict[str, Tuple[int, int]],
-    suffixes_word_indices_ranges: dict[str, Tuple[int, int]],
-) -> pd.DataFrame:
-    """This function filters the prefix and suffix metrics from the merged_df
-
-    Args:
-        merged_df (pd.DataFrame): In this dataframe, every row is a word with it's index
-            and extracted properties (length, frequency, surprisal etc.)
-        prefix_col_names (List[str]): Column names passed to extract_metrics_for_text_df
-            that contain prefixes that were added to the text (appear as rows in merged_df)
-        keep_prefix_metrics (bool | List[str]): If False, all prefix words (rows) will be
-            removed after metric extraction.
-            If True, all prefix metrics will be kept. If a list of strings, only the metrics
-            in the list will be kept.
-        suffix_col_names (List[str]): Column names passed to extract_metrics_for_text_df
-            that contain suffixes that were added to the text (appear as rows in merged_df)
-        keep_suffix_metrics (bool | List[str]): If False, all suffix words (rows) will be
-            removed after metric extraction.
-        prefixes_word_indices_ranges (dict[str, Tuple[int, int]]): A dictionary specifying
-            for each prefix column, the range of word indices in merged_df that correspond
-        suffixes_word_indices_ranges (dict[str, Tuple[int, int]]): A dictionary specifying
-            for each suffix column, the range of word indices in merged_df that correspond
-
-    Returns:
-        pd.DataFrame: merged_df after the prefix and suffix words (rows) were filtered
-    """
-    prefixes_suffixes_ranges_lst = [
-        (prefix_col_names, keep_prefix_metrics, prefixes_word_indices_ranges),
-        (suffix_col_names, keep_suffix_metrics, suffixes_word_indices_ranges),
-    ]
-
-    for (
-        full_col_names,
-        cols_to_keep,
-        word_indices_ranges,
-    ) in prefixes_suffixes_ranges_lst:
-        if cols_to_keep is True:  # keep all columns
-            continue
-        if cols_to_keep is False:  # remove all columns
-            cols_to_remove = full_col_names
-        else:  # keep only the specified columns
-            assert isinstance(cols_to_keep, list) and all(
-                [isinstance(col, str) for col in cols_to_keep]
-            )
-            cols_to_remove = [col for col in full_col_names if col not in cols_to_keep]
-
-        merged_df = merged_df.drop(
-            merged_df.index[
-                sum(
-                    [
-                        list(
-                            range(
-                                word_indices_ranges[col_to_remove][0],
-                                word_indices_ranges[col_to_remove][1] + 1,
-                            )
-                        )
-                        for col_to_remove in cols_to_remove
-                    ],
-                    [],
-                )
-            ]
-        )
-    return merged_df
-
-
 def extract_metrics_for_text_df(
     text_df: pd.DataFrame,
     text_col_name: str,
@@ -201,22 +129,9 @@ def extract_metrics_for_text_df(
         ordered_prefix_col_names (List[str], optional): A list of column names in text_df
             that contain prefixes. The order in which they appear in the list is the order
             in which they will be added to the text. Defaults to [].
-        keep_prefix_metrics (bool | List[str], optional): If False, all prefix metrics will be
-            removed after metric extraction.
-            If True, all prefix metrics will be kept. If a list of strings, only the metrics
-            in the list will be kept. Defaults to False.
         ordered_suffix_col_names (List[str], optional): A list of column names in text_df
             that contain suffixes. The order in which they appear in the list is the order
             in which they will be added to the text. Defaults to [].
-        keep_suffix_metrics (bool | List[str], optional): If False, all prefix metrics will be
-            removed after metric extraction.
-            If True, all prefix metrics will be kept. If a list of strings, only the metrics
-            in the list will be kept. Defaults to False.
-        rebase_index_in_main_text (bool, optional): If True, regardless of added prefixes and
-            suffixes, the 'index' column for each text will start from 0 from the beginning
-            of the main text. I.e, the 'index' column for prefixes will be negative and for
-            suffixes will be
-            bigger than the main text length (in words). Defaults to False.
         get_metrics_kwargs (dict | None, optional): A dict of additional keyword arguments for
             the get_metrics function. Defaults to None.
 
@@ -455,8 +370,6 @@ def add_metrics_to_eye_tracking(
             ],
             extract_metrics_for_text_df_kwargs=dict(
                 ordered_prefix_col_names=["question"],
-                keep_prefix_metrics=False,
-                rebase_index_in_main_text=True,
             ),
         )
         print("Extracting metrics: Gathering")
@@ -466,8 +379,6 @@ def add_metrics_to_eye_tracking(
             ],
             extract_metrics_for_text_df_kwargs=dict(
                 ordered_prefix_col_names=[],
-                keep_prefix_metrics=False,
-                rebase_index_in_main_text=True,
             ),
         )
 
@@ -477,8 +388,6 @@ def add_metrics_to_eye_tracking(
             text_df=text_from_et,
             extract_metrics_for_text_df_kwargs=dict(
                 ordered_prefix_col_names=[],
-                keep_prefix_metrics=False,
-                rebase_index_in_main_text=True,
             ),
         )
 
