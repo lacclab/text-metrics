@@ -350,7 +350,7 @@ if __name__ == "__main__":
             add_parsing_features=False,
             overlap_size=512,
         )
-        surp_col_name = f"{extractor_type.value}_{"Q_P" if i > 0 else "P"}_Surprisal"
+        surp_col_name = f"{extractor_type.value}_{'Q_P' if i > 0 else 'P'}_Surprisal"
         metrics.rename(
             columns={f"{model_name}_Surprisal": surp_col_name},
             inplace=True,
