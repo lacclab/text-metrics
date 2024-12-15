@@ -274,7 +274,7 @@ if __name__ == "__main__":
     said schools should stagger their starting times to work with the natural rhythms of their students.
     This would improve exam results and students' health (lack of sleep can cause diabetes, depression,
     obesity and other health problems).""".replace("\n", " ").replace("    ", "")
-    question = "What are some of the effects of following Dr. Kelley's suggestion?"
+    question = "Which university is Dr. Paul Kelley from?"
 
     # -----------------------------------------
     # et_data = pd.read_csv(
@@ -308,23 +308,26 @@ if __name__ == "__main__":
     # )
 
     # pythia 70m
-    model_name = "EleutherAI/pythia-70m"
+    model_name = "gpt2"
     surp_extractor = get_surp_extractor(
-        extractor_type=SurpExtractorType.CAT_CTX_LEFT, model_name=model_name
+        extractor_type=SurpExtractorType.CAT_CTX_LEFT,
+        model_name=model_name,
+        hf_access_token="",
     )
+    parsing_model = spacy.load("en_core_web_sm")
     q = question
 
     metrics = get_metrics(
         target_text=text,
         surp_extractor=surp_extractor,
-        parsing_model=None,
-        parsing_mode=None,
+        parsing_model=parsing_model,
+        parsing_mode="re-tokenize",
         left_context_text=q,
-        add_parsing_features=False,
-        overlap_size=512,
+        add_parsing_features=True,
+        # overlap_size=512,
     )
 
-    print(metrics)
+    print(metrics.head(5).to_markdown())
     # ------------------------------------------------------------------
     metrics_df = None
     extractor_type_lst = [
@@ -356,17 +359,19 @@ if __name__ == "__main__":
             inplace=True,
         )
 
-        if i == 0:
-            base_surp_lst = metrics[surp_col_name].values.tolist()
-        else:
-            curr_surp_lst = metrics[surp_col_name].values.tolist()
-            surp_lsts.append(
-                [
-                    curr_surp / base_surp
-                    for curr_surp, base_surp in zip(curr_surp_lst, base_surp_lst)
-                ]
-            )
-            surp_name_lsts.append(surp_col_name)
+        # if i == 0:
+        #     base_surp_lst = metrics[surp_col_name].values.tolist()
+        # else:
+        #     curr_surp_lst = metrics[surp_col_name].values.tolist()
+        #     surp_lsts.append(
+        #         [
+        #             curr_surp / base_surp
+        #             for curr_surp, base_surp in zip(curr_surp_lst, base_surp_lst)
+        #         ]
+        #     )
+        #     surp_name_lsts.append(surp_col_name)
+        surp_lsts.append(metrics[surp_col_name].values.tolist())
+        surp_name_lsts.append(surp_col_name)
 
         if metrics_df is None:
             metrics_df = metrics
@@ -382,9 +387,9 @@ if __name__ == "__main__":
         texts=[text] * len(surp_name_lsts),
         weights_list=surp_lsts,
         output_file_name="colorized_texts_w_surp.html",
-        color_normalizing_factor=2,
-        cmap=matplotlib.colormaps.get_cmap("coolwarm"),
+        color_normalizing_factor=10,
+        cmap=matplotlib.colormaps.get_cmap("Blues"),
         additional_note="Question: " + question,
     )
 
-    # metrics_df.to_csv("metrics_df.csv", index=False)
+    metrics_df.to_csv("metrics_df.csv", index=False)
