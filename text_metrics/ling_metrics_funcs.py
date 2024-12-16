@@ -119,7 +119,6 @@ def get_frequency(text: str) -> pd.DataFrame:
     )
     subtlex["Frequency"] = -np.log2(subtlex["Count"] / subtlex.sum().iloc[0])
 
-    #  TODO subtlex freq should be 'inf' if missing, not zero?
     subtlex_freqs = []
     for word in words:
         tokens = tokenize(word, lang="en")
@@ -128,9 +127,9 @@ def get_frequency(text: str) -> pd.DataFrame:
             for token in tokens:
                 one_over_result += 1.0 / subtlex.loc[token, "Frequency"]
         except KeyError:
-            subtlex_freq = 0
+            subtlex_freq = float("inf")
         else:
-            subtlex_freq = 1.0 / one_over_result if one_over_result != 0 else 0
+            subtlex_freq = 1.0 / one_over_result if one_over_result != 0 else float("inf")
         subtlex_freqs.append(subtlex_freq)
     frequencies["subtlex_Frequency"] = subtlex_freqs
 
