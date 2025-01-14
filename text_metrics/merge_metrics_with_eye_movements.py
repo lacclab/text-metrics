@@ -195,7 +195,7 @@ def extract_metrics_for_text_df_multiple_hf_models(
     ) = "re-tokenize",
     spacy_model: Language | None = spacy.load("en_core_web_sm"),
     model_target_device: str = "cpu",
-    hf_access_token: str = None,
+    hf_access_token: str | None = None,
     extract_metrics_for_text_df_kwargs: dict | None = None,
 ) -> pd.DataFrame:
     """This function extracts word level characteristics while extracting surprisal
