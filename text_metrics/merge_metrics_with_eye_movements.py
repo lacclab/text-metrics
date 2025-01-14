@@ -301,7 +301,7 @@ def add_metrics_to_word_level_eye_tracking_report(
     surp_extractor_type: extractors_constants.SurpExtractorType,
     parsing_mode: Literal["keep-first", "keep-all", "re-tokenize"],
     model_target_device: str = "cpu",
-    hf_access_token: str = None,
+    hf_access_token: str | None = None,
 ) -> pd.DataFrame:
     """This function adds metrics to the eye_tracking_data dataframe
 

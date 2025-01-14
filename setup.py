@@ -4,7 +4,7 @@ from setuptools import setup
 # TODO improve with https://python-poetry.org/
 setup(
     name="text_metrics",
-    version="1.1.6",
+    version="1.1.7",
     packages=[
         "text_metrics",
         "text_metrics.surprisal_extractors",
