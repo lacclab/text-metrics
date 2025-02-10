@@ -197,6 +197,7 @@ def extract_metrics_for_text_df_multiple_hf_models(
     model_target_device: str = "cpu",
     hf_access_token: str | None = None,
     extract_metrics_for_text_df_kwargs: dict | None = None,
+    save_path: str | None = None,
 ) -> pd.DataFrame:
     """This function extracts word level characteristics while extracting surprisal
         estimates from multiple huggingface models
@@ -243,53 +244,86 @@ def extract_metrics_for_text_df_multiple_hf_models(
 
     metric_df = None
     for i, model_name in enumerate(surprisal_extraction_model_names):
-        # log the model name
-        if i == 0:
-            print("Extracting Frequency, Length")
-        print(f"Extracting surprisal using model: {model_name}")
+        try:
+            # log the model name
+            if i == 0:
+                print("Extracting Frequency, Length")
+            print(f"Extracting surprisal using model: {model_name}")
 
-        surp_extractor = extractor_switch.get_surp_extractor(
-            extractor_type=surp_extractor_type,
-            model_name=model_name,
-            model_target_device=model_target_device,
-            hf_access_token=hf_access_token,
-        )
-
-        get_metrics_kwargs["add_parsing_features"] = (
-            True if metric_df is None and add_parsing_features else False
-        )
-        metric_dfs = extract_metrics_for_text_df(
-            text_df=text_df,
-            text_col_name=text_col_name,  # this is after turning all the words into a single string
-            text_key_cols=text_key_cols,
-            surp_extractor=surp_extractor,
-            get_metrics_kwargs=get_metrics_kwargs,
-            **extract_metrics_for_text_df_kwargs,
-        )
-
-        """Here we incrementally add the metrics from all models
-        In order to avoid duplicates, we merge only on the columns that were added in
-        the current iteration (surprisal estimates from the current model)"""
-        if metric_df is None:
-            metric_df = metric_dfs.copy()
-        else:
-            concatenated_metric_dfs = metric_dfs.copy()
-            cols_to_merge = concatenated_metric_dfs.columns.difference(
-                metric_df.columns
-            ).tolist()
-            cols_to_merge += text_key_cols + ["index"]
-
-            metric_df = metric_df.merge(
-                concatenated_metric_dfs[cols_to_merge],
-                how="left",
-                on=text_key_cols + ["index"],
-                validate="one_to_one",
+            surp_extractor = extractor_switch.get_surp_extractor(
+                extractor_type=surp_extractor_type,
+                model_name=model_name,
+                model_target_device=model_target_device,
+                hf_access_token=hf_access_token,
             )
-        # move the model back to the cpu and delete it to free up space
-        del surp_extractor
-        gc.collect()
-        torch.cuda.empty_cache()
 
+            get_metrics_kwargs["add_parsing_features"] = (
+                True if metric_df is None and add_parsing_features else False
+            )
+            metric_dfs = extract_metrics_for_text_df(
+                text_df=text_df,
+                text_col_name=text_col_name,  # this is after turning all the words into a single string
+                text_key_cols=text_key_cols,
+                surp_extractor=surp_extractor,
+                get_metrics_kwargs=get_metrics_kwargs,
+                **extract_metrics_for_text_df_kwargs,
+            )
+
+            """Here we incrementally add the metrics from all models
+            In order to avoid duplicates, we merge only on the columns that were added in
+            the current iteration (surprisal estimates from the current model)"""
+            if metric_df is None:
+                metric_df = metric_dfs.copy()
+            else:
+                concatenated_metric_dfs = metric_dfs.copy()
+                cols_to_merge = concatenated_metric_dfs.columns.difference(
+                    metric_df.columns
+                ).tolist()
+                cols_to_merge += text_key_cols + ["index"]
+
+                metric_df = metric_df.merge(
+                    concatenated_metric_dfs[cols_to_merge],
+                    how="left",
+                    on=text_key_cols + ["index"],
+                    validate="one_to_one",
+                )
+                
+            def save_temp(df: pd.DataFrame, save_path, groupby_cols) -> pd.DataFrame:
+                text_df_w_metrics = df.drop(
+                    columns=[
+                        "Word",
+                        "Length",
+                        "Wordfreq_Frequency",
+                        "subtlex_Frequency",
+                    ]
+                    )
+                mean_surp_df = (
+                    text_df_w_metrics.groupby(groupby_cols)
+                    .agg(
+                        {
+                            col: ["mean", "max", "min", "std", "count", "median"]
+                            for col in text_df_w_metrics.columns
+                            if col not in groupby_cols
+                        }
+                    )
+                    .reset_index()
+                )
+                mean_surp_df.columns = [
+                    "_".join(col).strip("_") for col in mean_surp_df.columns.values
+                ]
+                mean_surp_df.to_csv(save_path, index=False)
+                print(f"Saved to {save_path}")
+            if save_path is not None:
+                save_temp(metric_df, save_path, text_key_cols)
+            # move the model back to the cpu and delete it to free up space
+            del surp_extractor
+            gc.collect()
+            torch.cuda.empty_cache()
+            
+
+        except Exception as e:
+            print(f"Error for {model_name}: {e}")
+        
     return metric_df
 
 
