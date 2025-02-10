@@ -61,7 +61,7 @@ class CatCtxLeftSurpExtractor(BaseSurprisalExtractor):
         target_text: str,
         left_context_text: str | None = None,
         overlap_size: int | None = None,
-        allow_overlap: bool = False,
+        allow_overlap: bool = True,
     ) -> Tuple[np.ndarray, List[Tuple[int]]]:
         """This function calculates the surprisal of a target_text using a language model.
          In case the target_text is too long, it is split into chunks while keeping previous context of STRIDE tokens.
