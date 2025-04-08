@@ -1,4 +1,4 @@
-name: r_env
+name: sp_viz_env
 channels:
   - anaconda
   - conda-forge
