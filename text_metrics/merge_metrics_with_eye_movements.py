@@ -287,7 +287,7 @@ def extract_metrics_for_text_df_multiple_hf_models(
                     on=text_key_cols + ["index"],
                     validate="one_to_one",
                 )
-
+                
             def save_temp(df: pd.DataFrame, save_path, groupby_cols) -> pd.DataFrame:
                 text_df_w_metrics = df.drop(
                     columns=[
@@ -296,7 +296,7 @@ def extract_metrics_for_text_df_multiple_hf_models(
                         "Wordfreq_Frequency",
                         "subtlex_Frequency",
                     ]
-                )
+                    )
                 mean_surp_df = (
                     text_df_w_metrics.groupby(groupby_cols)
                     .agg(
@@ -313,17 +313,17 @@ def extract_metrics_for_text_df_multiple_hf_models(
                 ]
                 mean_surp_df.to_csv(save_path, index=False)
                 print(f"Saved to {save_path}")
-
             if save_path is not None:
                 save_temp(metric_df, save_path, text_key_cols)
             # move the model back to the cpu and delete it to free up space
             del surp_extractor
             gc.collect()
             torch.cuda.empty_cache()
+            
 
         except Exception as e:
             print(f"Error for {model_name}: {e}")
-
+        
     return metric_df
 
 
@@ -372,17 +372,7 @@ def add_metrics_to_word_level_eye_tracking_report(
 
     text_from_et = text_from_et.apply(lambda text: " ".join(text))
 
-    try:
-        spacy_model = spacy.load(spacy_model_name)
-    except OSError:
-        print(
-            f"Downloading the spaCy {spacy_model_name} language model\n"
-            "(don't worry, this will only happen once)"
-        )
-        from spacy.cli import download
-
-        download(spacy_model_name)
-        spacy_model = spacy.load(spacy_model_name)
+    spacy_model = spacy.load(spacy_model_name)
 
     extract_metrics_partial = partial(
         extract_metrics_for_text_df_multiple_hf_models,
