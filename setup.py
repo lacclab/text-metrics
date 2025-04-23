@@ -27,7 +27,7 @@ setup(
         "transformers>=4.40.1",
         "wordfreq>=3.0.3",
         "numpy>=1.20.3",
-        "torch",
+        # "torch",
         "spacy",
         "accelerate",
         "sentence-splitter",
