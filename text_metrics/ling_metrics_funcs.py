@@ -79,7 +79,7 @@ def get_surprisal(
     return dataframe_probs
 
 
-def get_frequency(text: str) -> pd.DataFrame:
+def get_frequency(text: str, language: str) -> pd.DataFrame:
     """
     Get (negative log2) frequencies for each word in text.
 
@@ -89,10 +89,11 @@ def get_frequency(text: str) -> pd.DataFrame:
     E.g. freq(top-level) = 1/(1/freq(top) + 1/freq(level))
 
     :param text: str, the text to get frequencies for.
+    :param language: str, the language of the text.
     :return: pd.DataFrame, each row represents a word and its frequency.
 
     >>> text = "hello, how are you?"
-    >>> frequencies = get_frequency(text=text)
+    >>> frequencies = get_frequency(text=text, language=language)
     >>> frequencies
          Word  Wordfreq_Frequency  subtlex_Frequency
     0  hello,           14.217323          10.701528
@@ -104,7 +105,7 @@ def get_frequency(text: str) -> pd.DataFrame:
     frequencies = {
         "Word": words,
         "Wordfreq_Frequency": [
-            -np.log2(word_frequency(word, lang="en", minimum=1e-11)) for word in words
+            -np.log2(word_frequency(word, lang=language, minimum=1e-11)) for word in words
         ],  # minimum equal to ~36.5
     }
     # TODO improve loading of file according to https://stackoverflow.com/questions/6028000/how-to-read-a-static-file-from-inside-a-python-package
@@ -121,7 +122,7 @@ def get_frequency(text: str) -> pd.DataFrame:
 
     subtlex_freqs = []
     for word in words:
-        tokens = tokenize(word, lang="en")
+        tokens = tokenize(word, lang=language)
         one_over_result = 0.0
         try:
             for token in tokens:
@@ -193,6 +194,7 @@ def get_metrics(
     left_context_text: str | None = None,
     add_parsing_features: bool = True,
     overlap_size: int = 512,
+    language: str = 'en',
 ) -> pd.DataFrame:
     """
     Wrapper function to get the surprisal and frequency values and length of each word in the text.
@@ -203,6 +205,7 @@ def get_metrics(
     :param parsing_model: the spacy model to use for parsing the text.
     :param parsing_mode: type of parsing to use. one of ['keep-first','keep-all','re-tokenize']
     :param add_parsing_features: whether to add parsing features to the output.
+    :param language: language of the text.
     :return: pd.DataFrame, each row represents a word, its surprisal and frequency.
 
 
@@ -235,7 +238,7 @@ def get_metrics(
     )
     surprisals.append(surprisal)
 
-    frequency = get_frequency(text=target_text_reformatted)
+    frequency = get_frequency(text=target_text_reformatted, language=language)
     word_length = get_word_length(
         text=target_text_reformatted, disregard_punctuation=True
     )
