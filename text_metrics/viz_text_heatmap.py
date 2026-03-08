@@ -108,16 +108,17 @@ def generate_html_for_texts(
     with open(output_file_name, "w") as f:
         f.write(html_content)
 
+if __name__ == '__main__':
 
-# Example usage
-texts = [
-    "Many of us know we don't get enough sleep, but imagine if there was a simple solution.",
-    "In a speech at the British Science Festival, Dr. Paul Kelley from Oxford University said schools should stagger their starting times.",
-]
-weights_list = [
-    [x / len(range(len(texts[0].split()))) for x in range(len(texts[0].split()))],
-    [x / len(range(len(texts[1].split()))) for x in range(len(texts[1].split()))],
-]
-titles = ["Sleep Problem", "British Science Festival Speech"]
+    # Example usage
+    texts = [
+        "Many of us know we don't get enough sleep, but imagine if there was a simple solution.",
+        "In a speech at the British Science Festival, Dr. Paul Kelley from Oxford University said schools should stagger their starting times.",
+    ]
+    weights_list = [
+        [x / len(range(len(texts[0].split()))) for x in range(len(texts[0].split()))],
+        [x / len(range(len(texts[1].split()))) for x in range(len(texts[1].split()))],
+    ]
+    titles = ["Sleep Problem", "British Science Festival Speech"]
 
-generate_html_for_texts(titles, texts, weights_list)
+    generate_html_for_texts(titles, texts, weights_list)
