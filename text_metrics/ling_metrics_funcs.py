@@ -195,6 +195,7 @@ def get_metrics(
     add_parsing_features: bool = True,
     overlap_size: int = 512,
     language: str = 'en',
+    disregard_punctuation: bool = True,
 ) -> pd.DataFrame:
     """
     Wrapper function to get the surprisal and frequency values and length of each word in the text.
@@ -206,7 +207,8 @@ def get_metrics(
     :param parsing_mode: type of parsing to use. one of ['keep-first','keep-all','re-tokenize']
     :param add_parsing_features: whether to add parsing features to the output.
     :param language: language of the text.
-    :return: pd.DataFrame, each row represents a word, its surprisal and frequency.
+    :param disregard_punctuation: whether to disregard punctuation in word length computation.
+    :return: pd.DataFrame, each row represents a word, its length, surprisal and frequency.
 
 
     >>> tokenizer = AutoTokenizer.from_pretrained('gpt2')
@@ -240,7 +242,7 @@ def get_metrics(
 
     frequency = get_frequency(text=target_text_reformatted, language=language)
     word_length = get_word_length(
-        text=target_text_reformatted, disregard_punctuation=True
+        text=target_text_reformatted, disregard_punctuation=disregard_punctuation
     )
 
     merged_df = word_length.join(frequency.drop("Word", axis=1))
