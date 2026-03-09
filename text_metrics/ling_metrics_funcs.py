@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import spacy
 from text_metrics.surprisal_extractors.base_extractor import BaseSurprisalExtractor
-import pkg_resources
+from importlib.resources import files
 
 from text_metrics.utils import get_parsing_features, string_to_log_probs, clean_text
 from wordfreq import word_frequency, tokenize
@@ -108,11 +108,8 @@ def get_frequency(text: str, language: str) -> pd.DataFrame:
             -np.log2(word_frequency(word, lang=language, minimum=1e-11)) for word in words
         ],  # minimum equal to ~36.5
     }
-    # TODO improve loading of file according to https://stackoverflow.com/questions/6028000/how-to-read-a-static-file-from-inside-a-python-package
-    #  and https://setuptools.pypa.io/en/latest/userguide/datafiles.html
-    data = pkg_resources.resource_stream(
-        __name__, "data/SUBTLEXus74286wordstextversion_lower.tsv"
-    )
+    data_path = files("text_metrics").joinpath("data/SUBTLEXus74286wordstextversion_lower.tsv")
+    data = data_path.open("rb")
     subtlex = pd.read_csv(
         data,
         sep="\t",
