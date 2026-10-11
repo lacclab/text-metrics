@@ -3,13 +3,15 @@
 import logging
 
 import torch
-from transformers import AutoModelForCausalLM
-from transformers import AutoTokenizer
-from transformers import BertTokenizerFast
-from transformers import GPTNeoXForCausalLM
-from transformers import GPTNeoXTokenizerFast
-from transformers import LlamaForCausalLM
-from transformers import MambaForCausalLM
+from transformers import (
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    BertTokenizerFast,
+    GPTNeoXForCausalLM,
+    GPTNeoXTokenizerFast,
+    LlamaForCausalLM,
+    MambaForCausalLM,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +25,7 @@ def _has_meta_params(loaded) -> bool:
     aliased tensor on meta without raising, and the model silently has no
     input embeddings. Tokenizers have no ``parameters`` and return False.
     """
-    params = getattr(loaded, 'parameters', None)
+    params = getattr(loaded, "parameters", None)
     if params is None:
         return False
     return any(p.is_meta for p in loaded.parameters())
@@ -53,7 +55,7 @@ def _from_pretrained_local_first(cls, model_name: str, **kwargs):
             return cls.from_pretrained(model_name, local_files_only=True, **merged)
         except (OSError, ValueError) as exc:
             logger.info(
-                'Local cache miss for %s (%s); fetching from the HuggingFace hub.',
+                "Local cache miss for %s (%s); fetching from the HuggingFace hub.",
                 model_name,
                 exc.__class__.__name__,
             )
@@ -61,17 +63,19 @@ def _from_pretrained_local_first(cls, model_name: str, **kwargs):
 
     try:
         loaded = _load()
-    except NotImplementedError:
+    except NotImplementedError as exc:
+        if "meta tensor" not in str(exc):
+            raise
         logger.warning(
-            'Meta-tensor error loading %s from safetensors; retrying with '
-            'use_safetensors=False.',
+            "Meta-tensor error loading %s from safetensors; retrying with "
+            "use_safetensors=False.",
             model_name,
         )
         return _load(use_safetensors=False)
     if _has_meta_params(loaded):
         logger.warning(
-            '%s loaded with meta-device parameters (broken tied-weight '
-            'safetensors); retrying with use_safetensors=False.',
+            "%s loaded with meta-device parameters (broken tied-weight "
+            "safetensors); retrying with use_safetensors=False.",
             model_name,
         )
         return _load(use_safetensors=False)
@@ -96,8 +100,8 @@ def _from_pretrained_local_first(cls, model_name: str, **kwargs):
 
 def load_tokenizer_and_model(
     model_name: str,
-    device: str = 'cpu',
-    pythia_checkpoint: str | None = 'step143000',
+    device: str = "cpu",
+    pythia_checkpoint: str | None = "step143000",
     hf_access_token: str | None = None,
 ):
     """Load a HuggingFace causal language model and its tokenizer.
@@ -109,90 +113,90 @@ def load_tokenizer_and_model(
     :raises ValueError: if the model family is not supported.
     :return: (tokenizer, model) tuple.
     """
-    model_variant = model_name.split('/')[-1]
+    model_variant = model_name.split("/")[-1]
 
-    if 'chinese' in model_variant:
+    if "chinese" in model_variant:
         tokenizer = _from_pretrained_local_first(BertTokenizerFast, model_name)
 
     elif any(
         variant in model_variant
-        for variant in ['gpt-neo', 'gpt', 'CzeGPT', 'mGPT', 'opt', 'mamba', 'rwkv']
+        for variant in ["gpt-neo", "gpt", "CzeGPT", "mGPT", "opt", "mamba", "rwkv"]
     ):
         tokenizer = _from_pretrained_local_first(
             AutoTokenizer, model_name, use_fast=True
         )
 
-    elif 'gpt-neox' in model_variant:
+    elif "gpt-neox" in model_variant:
         tokenizer = _from_pretrained_local_first(GPTNeoXTokenizerFast, model_name)
 
-    elif 'Eagle' in model_variant:  # RWKV V5
+    elif "Eagle" in model_variant:  # RWKV V5
         tokenizer = _from_pretrained_local_first(
             AutoTokenizer, model_name, trust_remote_code=True
         )
-    elif any(variant in model_variant for variant in ['Llama', 'Mistral', 'gemma']):
+    elif any(variant in model_variant for variant in ["Llama", "Mistral", "gemma"]):
         assert hf_access_token is not None, (
-            f'Please provide the HuggingFace access token to load {model_name}'
+            f"Please provide the HuggingFace access token to load {model_name}"
         )
         tokenizer = _from_pretrained_local_first(
             AutoTokenizer, model_name, use_fast=True, token=hf_access_token
         )
 
-    elif 'pythia' in model_variant:
+    elif "pythia" in model_variant:
         tokenizer = _from_pretrained_local_first(
             AutoTokenizer, model_name, revision=pythia_checkpoint, use_fast=True
         )
 
     else:
-        raise ValueError(f'Unsupported model: {model_name}')
+        raise ValueError(f"Unsupported model: {model_name}")
 
     if any(
         variant in model_variant
-        for variant in ['gpt-neo', 'gpt', 'CzeGPT', 'mGPT', 'opt', 'rwkv']
+        for variant in ["gpt-neo", "gpt", "CzeGPT", "mGPT", "opt", "rwkv"]
     ):
         model = _from_pretrained_local_first(
-            AutoModelForCausalLM, model_name, device_map='auto'
+            AutoModelForCausalLM, model_name, device_map="auto"
         )
 
-    elif 'Eagle' in model_variant:  # RWKV
+    elif "Eagle" in model_variant:  # RWKV
         model = _from_pretrained_local_first(
-            AutoModelForCausalLM, model_name, device_map='auto', trust_remote_code=True
+            AutoModelForCausalLM, model_name, device_map="auto", trust_remote_code=True
         ).to(torch.float32)
 
-    elif 'pythia' in model_variant:
+    elif "pythia" in model_variant:
         model = _from_pretrained_local_first(
             GPTNeoXForCausalLM,
             model_name,
             revision=pythia_checkpoint,
-            device_map='auto',
+            device_map="auto",
         )
 
-    elif 'mamba' in model_variant:
+    elif "mamba" in model_variant:
         model = _from_pretrained_local_first(
             MambaForCausalLM,
             model_name,
-            device_map='auto',
+            device_map="auto",
         )
 
-    elif 'Llama' in model_variant:
+    elif "Llama" in model_variant:
         model = _from_pretrained_local_first(
-            LlamaForCausalLM, model_name, token=hf_access_token, device_map='auto'
+            LlamaForCausalLM, model_name, token=hf_access_token, device_map="auto"
         )
 
-    elif any(variant in model_variant for variant in ['gemma-2']):
+    elif any(variant in model_variant for variant in ["gemma-2"]):
         model = _from_pretrained_local_first(
             AutoModelForCausalLM,
             model_name,
             token=hf_access_token,
-            device_map='auto',
+            device_map="auto",
             torch_dtype=torch.bfloat16,
         )
 
-    elif any(variant in model_variant for variant in ['Mistral', 'gemma']):
+    elif any(variant in model_variant for variant in ["Mistral", "gemma"]):
         model = _from_pretrained_local_first(
-            AutoModelForCausalLM, model_name, token=hf_access_token, device_map='auto'
+            AutoModelForCausalLM, model_name, token=hf_access_token, device_map="auto"
         )
 
     else:
-        raise ValueError(f'Unsupported model: {model_name}')
+        raise ValueError(f"Unsupported model: {model_name}")
 
     return tokenizer, model
