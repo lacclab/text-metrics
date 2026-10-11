@@ -78,16 +78,12 @@ def load_tokenizer_and_model(
         variant in model_variant
         for variant in ["gpt-neo", "gpt", "CzeGPT", "mGPT", "opt", "rwkv"]
     ):
-        # Some safetensors checkpoints store tied weights as a metadata alias
-        # only (e.g. redrussianarmy/gpt2-turkish-cased), leaving the aliased
-        # tensor on the meta device; fall back to the .bin checkpoint.
         try:
             model = AutoModelForCausalLM.from_pretrained(model_name, device_map="auto")
         except NotImplementedError as exc:
+            # Broken tied-weight safetensors (e.g. redrussianarmy/gpt2-turkish-cased)
             if "meta tensor" not in str(exc):
                 raise
-            model = None
-        if model is None or any(p.is_meta for p in model.parameters()):
             model = AutoModelForCausalLM.from_pretrained(
                 model_name, device_map="auto", use_safetensors=False
             )
