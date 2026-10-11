@@ -78,7 +78,15 @@ def load_tokenizer_and_model(
         variant in model_variant
         for variant in ["gpt-neo", "gpt", "CzeGPT", "mGPT", "opt", "rwkv"]
     ):
-        model = AutoModelForCausalLM.from_pretrained(model_name, device_map="auto")
+        try:
+            model = AutoModelForCausalLM.from_pretrained(model_name, device_map="auto")
+        except NotImplementedError as exc:
+            # Broken tied-weight safetensors (e.g. redrussianarmy/gpt2-turkish-cased)
+            if "meta tensor" not in str(exc):
+                raise
+            model = AutoModelForCausalLM.from_pretrained(
+                model_name, device_map="auto", use_safetensors=False
+            )
 
     elif "Eagle" in model_variant:  # RWKV
         model = AutoModelForCausalLM.from_pretrained(
