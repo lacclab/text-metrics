@@ -201,11 +201,11 @@ class BaseSurprisalExtractor:
 
             if start_ind == 0:
                 context_length = len(self.tokenizer.encode(full_context))
-                if allow_overlap:
+                if allow_overlap and context_length > max_ctx:
                     print(
                         f"The context length is too long ({context_length}>{max_ctx}) for {self.model_name}. Splitting the full text into chunks with overlap {overlap_size}"
                     )
-                else:
+                elif not allow_overlap:
                     raise ValueError(
                         f"The context length is too long ({context_length}>{max_ctx}) for {self.model_name}. Try enabling allow_overlap and specify overlap size"
                     )
