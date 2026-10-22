@@ -169,9 +169,13 @@ class BaseSurprisalExtractor:
                 return_offsets_mapping=True,
                 add_special_tokens=False,
             )
-            is_last_chunk = (encodings["offset_mapping"][-1][1] + start_ind) == len(
-                full_context
-            )
+            # Last chunk iff nothing after it tokenizes. Comparing the end offset
+            # to len(full_context) fails for tokenizers that drop trailing
+            # characters (e.g. BERT-style tokenizers drop trailing whitespace).
+            chunk_end = start_ind + encodings["offset_mapping"][-1][1]
+            is_last_chunk = not self.tokenizer(
+                full_context[chunk_end:], add_special_tokens=False
+            )["input_ids"]
 
             tensor_input, eos_appended = self._create_input_tokens(
                 encodings,
